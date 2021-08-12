@@ -1,0 +1,18 @@
+{
+    "name": "davekok/stream",
+    "description": "Stream abstraction library",
+    "type": "library",
+    "license": "Unlicense",
+    "autoload": {
+        "psr-4": {
+            "DaveKok\\Stream\\": "src/"
+        }
+    },
+    "authors": [
+        {
+            "name": "Dave Kok",
+            "email": "email@davekok.nl"
+        }
+    ],
+    "require": {}
+}
