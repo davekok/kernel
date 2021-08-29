@@ -7,29 +7,25 @@ namespace DaveKok\Stream;
 /**
  * A simple implementation of the stream interface using PHP builtin functions.
  */
-class PhpStream implements StreamInterface
+class Stream
 {
-    private $stream;
-    private $pid;
-
-    public function __construct(string $url = null, string $mode = null, $context = null)
-    {
-        if ($url) {
-            $this->open($url, $mode, $context);
-        }
-    }
+    public readonly $handle;
+    public readonly $pid;
 
     public function __destruct()
     {
-        $this->close();
+        if ($this->pid) {
+            posix_kill($this->pid, SIGTERM);
+            pcntl_waitpid($this->pid, $status);
+        }
     }
 
     /**
      * Open the stream.
      *
-     * @param string $url      where to open the stream to
-     * @param string $mode     in which mode to open
-     * @param mixed  $context  the context to use
+     * @param $url      where to open the stream to
+     * @param $mode     in which mode to open
+     * @param $context  the context to use
      *
      * File modes:
      * 'r'  Open for reading only; place the file pointer at the beginning of the file.
@@ -65,14 +61,7 @@ class PhpStream implements StreamInterface
      * 'p'  Persist connection (STREAM_CLIENT_PERSISTENT).
      * 'tX' Timeout, replace X with a float.
      *
-     * Example: `new Stream("tcp://127.0.0.1:80", "c");`
-     *
-     * Socket modes for passive sockets (server):
-     * 'b'  Bind to address (STREAM_SERVER_BIND).
-     * 'l'  Listen on socket (STREAM_SERVER_LISTEN).
-     * 's'  If the IP address is not 0.0.0.0 force a server socket instead of a client socket.
-     *
-     * Example: `new Stream("tcp://0.0.0.0:80", "bl");`
+     * Example: `open("tcp://127.0.0.1:80", "c");`
      *
      * Modes for exec scheme:
      * 'r'  Open command for reading only, reads from the stream will be the output of the process.
@@ -82,9 +71,9 @@ class PhpStream implements StreamInterface
      * 'e'  stderr of the process is redirected to stdout of the process.
      *
      * Examples:
-     * - `new Stream("exec:ls?-l#WD=/home", "r");`
-     * - `new Stream("exec:cp?/home/src&/home/dest#WD=/home", "r");`
-     * - `new Stream("exec:/opt/package/command?arg1#WD=/opt/package", "r+e");`
+     * - `open("exec:ls?-l#WD=/home", "r");`
+     * - `open("exec:cp?/home/src&/home/dest#WD=/home", "r");`
+     * - `open("exec:/opt/package/command?arg1#WD=/opt/package", "r+e");`
      *
      * Use the fragment to set environment variables. WD is the working directory in which to execute the command.
      */
@@ -95,39 +84,28 @@ class PhpStream implements StreamInterface
         if (in_array($scheme, stream_get_transports())) {
 
             $host = parse_url($url, PHP_URL_HOST);
-            if ($host === "0.0.0.0" || strpos($mode, "s") !== false) {
-                $flags = strpos($mode, "b") !== false ? STREAM_SERVER_BIND : 0;
-                $flags|= strpos($mode, "l") !== false ? STREAM_SERVER_LISTEN : 0;
-                if ($context === null) {
-                    $this->stream = stream_socket_server($url, $errno, $errstr, $flags);
+            if ($mode) {
+                $flags = strpos($mode, "c") !== false ? STREAM_CLIENT_CONNECT : 0;
+                $flags|= strpos($mode, "a") !== false ? STREAM_CLIENT_ASYNC_CONNECT : 0;
+                $flags|= strpos($mode, "p") !== false ? STREAM_CLIENT_PERSISTENT : 0;
+                $timeout = strpos($mode, "t");
+                if ($timeout !== false) {
+                    $timeout = (float)substr($mode, $timeout+1, strspn($mode, "0123456789.", $timeout+1));
                 } else {
-                    $this->stream = stream_socket_server($url, $errno, $errstr, $flags, $context);
+                    $timeout = ini_get("default_socket_timeout");
+                }
+                if ($flags == 0) {
+                    $flags = STREAM_CLIENT_CONNECT;
                 }
             } else {
-                if ($mode) {
-                    $flags = strpos($mode, "c") !== false ? STREAM_CLIENT_CONNECT : 0;
-                    $flags|= strpos($mode, "a") !== false ? STREAM_CLIENT_ASYNC_CONNECT : 0;
-                    $flags|= strpos($mode, "p") !== false ? STREAM_CLIENT_PERSISTENT : 0;
-                    $timeout = strpos($mode, "t");
-                    if ($timeout !== false) {
-                        $timeout = (float)substr($mode, $timeout+1, strspn($mode, "0123456789.", $timeout+1));
-                    } else {
-                        $timeout = ini_get("default_socket_timeout");
-                    }
-                    if ($flags == 0) {
-                        $flags = STREAM_CLIENT_CONNECT;
-                    }
-                } else {
-                    $mode ??= "c";
-                }
-                if ($context === null) {
-                    $this->stream = stream_socket_client($url, $errno, $errstr, $timeout, $flags);
-                } else {
-                    $this->stream = stream_socket_client($url, $errno, $errstr, $timeout, $flags, $context);
-                }
+                $mode ??= "c";
             }
-            if ($this->stream === false) {
-                $this->stream = null;
+            if ($context === null) {
+                $this->handle = stream_socket_client($url, $errno, $errstr, $timeout, $flags);
+            } else {
+                $this->handle = stream_socket_client($url, $errno, $errstr, $timeout, $flags, $context);
+            }
+            if ($this->handle === false) {
                 throw new OpenStreamError($errstr, $errno);
             }
 
@@ -148,7 +126,7 @@ class PhpStream implements StreamInterface
 
             $this->pid = pcntl_fork();
 
-            if (-1 === $this->pid) {
+            if ($this->pid === -1) {
 
                 throw new OpenStreamError("Failed to fork.");
 
@@ -209,36 +187,24 @@ class PhpStream implements StreamInterface
 
                 // the parent process
                 fclose($pair[1]);
-                $this->stream = $pair[0];
+                $this->handle = $pair[0];
 
             }
 
         } else {
 
             $mode ??= "r";
-            $this->stream = fopen($url, $mode, false, $context);
-            if ($this->stream === false) {
-                $this->stream = null;
+            $this->handle = fopen($url, $mode, false, $context);
+            if ($this->handle === false) {
                 throw new OpenStreamError("Unable to open stream for $url with mode $mode.");
             }
 
         }
     }
 
-    public function accept(): ?Stream
-    {
-        $stream = stream_socket_accept($this->stream);
-        if (false === $stream) {
-            throw new AcceptStreamError();
-        }
-        $self = new self;
-        $self->stream = $stream;
-        return $self;
-    }
-
     public function read(int $length): string
     {
-        $buffer = fread($this->stream, $length);
+        $buffer = fread($this->handle, $length);
         if (false === $buffer) {
             throw new ReadStreamError();
         }
@@ -247,7 +213,7 @@ class PhpStream implements StreamInterface
 
     public function readLine(int $length, string $ending = "\n"): string
     {
-        $buffer = stream_get_line($this->stream, $length, $ending);
+        $buffer = stream_get_line($this->handle, $length, $ending);
         if (false === $buffer) {
             throw new ReadStreamError();
         }
@@ -256,7 +222,7 @@ class PhpStream implements StreamInterface
 
     public function readCSV(int $length = 0, string $delimiter = ",", string $enclosure = '"', string $escape = "\\"): array
     {
-        $buffer = fgetcsv($this->stream, $length, $delimiter, $enclosure, $escape);
+        $buffer = fgetcsv($this->handle, $length, $delimiter, $enclosure, $escape);
         if (false === $buffer) {
             throw new ReadStreamError();
         }
@@ -265,7 +231,7 @@ class PhpStream implements StreamInterface
 
     public function readAll(int $maxlength = -1, int $offset = -1): string
     {
-        $buffer = stream_get_contents($this->stream, $maxlength, $offset);
+        $buffer = stream_get_contents($this->handle, $maxlength, $offset);
         if (false === $buffer) {
             throw new ReadStreamError();
         }
@@ -275,9 +241,9 @@ class PhpStream implements StreamInterface
     public function receive(int $length, int $flags = 0, string &$address = null): string
     {
         if ($address !== null) {
-            $buffer = stream_socket_recvfrom($this->stream, $length, $flags, $address);
+            $buffer = stream_socket_recvfrom($this->handle, $length, $flags, $address);
         } else {
-            $buffer = stream_socket_recvfrom($this->stream, $length, $flags);
+            $buffer = stream_socket_recvfrom($this->handle, $length, $flags);
         }
         if (false === $buffer) throw new ReadStreamError();
         return $buffer;
@@ -286,9 +252,9 @@ class PhpStream implements StreamInterface
     public function write(string $text, int $length = null): int
     {
         if ($length !== null) {
-            $ret = fwrite($this->stream, $text, $length);
+            $ret = fwrite($this->handle, $text, $length);
         } else {
-            $ret = fwrite($this->stream, $text);
+            $ret = fwrite($this->handle, $text);
         }
         if (false === $ret) throw new WriteStreamError();
         return $ret;
@@ -296,14 +262,14 @@ class PhpStream implements StreamInterface
 
     public function writeLine(string $text): int
     {
-        $ret = fwrite($this->stream, "$text\n");
+        $ret = fwrite($this->handle, "$text\n");
         if (false === $ret) throw new WriteStreamError();
         return $ret;
     }
 
     public function writeCSV(array $fields, string $delimiter = ",", string $enclosure = '"', string $escape = "\\"): int
     {
-        $ret = fputcsv($this->stream, $fields, $delimiter, $enclosure, $escape);
+        $ret = fputcsv($this->handle, $fields, $delimiter, $enclosure, $escape);
         if (false === $ret) throw new WriteStreamError();
         return $ret;
     }
@@ -311,9 +277,9 @@ class PhpStream implements StreamInterface
     public function send(string $data, int $flags = 0, string $address = null): string
     {
         if ($address !== null) {
-            $buffer = stream_socket_sendto($this->stream, $data, $flags, $address);
+            $buffer = stream_socket_sendto($this->handle, $data, $flags, $address);
         } else {
-            $buffer = stream_socket_sendto($this->stream, $data, $flags);
+            $buffer = stream_socket_sendto($this->handle, $data, $flags);
         }
         if (false === $buffer) throw new WriteStreamError();
         return $buffer;
@@ -321,22 +287,22 @@ class PhpStream implements StreamInterface
 
     public function truncate(int $size = 0): void
     {
-        if (false === ftruncate($this->stream, $size)) throw new StreamError();
+        if (false === ftruncate($this->handle, $size)) throw new StreamError();
     }
 
     /**
      * Let the stream flow, either to the default output stream
      * or to the given stream.
      *
-     * @param Stream|null $dest  the destination stream
+     * @param self|null $dest  the destination stream
      * @return int  the number of bytes that flowed.
      */
-    public function flow(?Stream $dest = null): int
+    public function flow(?self $dest = null): int
     {
         if ($dest) {
-            $ret = stream_copy_to_stream($this->stream, $dest->stream);
+            $ret = stream_copy_to_stream($this->handle, $dest->stream);
         } else {
-            $ret = fpassthru($this->stream);
+            $ret = fpassthru($this->handle);
         }
         if (false === $ret) {
             throw new StreamFlowError();
@@ -346,122 +312,133 @@ class PhpStream implements StreamInterface
 
     public function close(): void
     {
-        if ($this->stream) {
-            $ret = fclose($this->stream);
-            $this->stream = null;
-        }
-        if ($this->pid) {
-            posix_kill($this->pid, SIGTERM);
-            pcntl_waitpid($this->pid, $status);
-            $this->pid = null;
-        }
-        if (false === $ret) {
+        $ret = fclose($this->handle);
+        if ($ret === false) {
             throw new StreamCloseError("Failed to close stream.");
         }
     }
 
     public function shutdown(int $how): void
     {
-        if (false === stream_socket_shutdown($this->stream, $how)) throw new StreamError();
+        if (stream_socket_shutdown($this->handle, $how) === false)
+            throw new StreamError();
     }
 
     public function setBlocking(bool $block): void
     {
-        if (false === stream_set_blocking($this->stream, $block)) throw new StreamError();
+        if (stream_set_blocking($this->handle, $block) === false)
+            throw new StreamError();
     }
 
     public function setChunkSize(int $size): int
     {
-        $ret = stream_set_chunk_size($this->stream, $size);
-        if (false === $ret) throw new StreamError();
+        $ret = stream_set_chunk_size($this->handle, $size);
+        if ($ret === false)
+            throw new StreamError();
         return $ret;
     }
 
     public function setReadBufferSize(int $size): int
     {
-        return stream_set_read_buffer($this->stream, $size);
+        return stream_set_read_buffer($this->handle, $size);
     }
 
     public function setWriteBufferSize(int $size): int
     {
-        return stream_set_write_buffer($this->stream, $size);
+        return stream_set_write_buffer($this->handle, $size);
     }
 
     public function setTimeout(int $timeout, int $microseconds = -1): void
     {
-        if (false === stream_set_timeout($this->stream, $timeout, $microseconds)) throw new StreamError();
+        if (stream_set_timeout($this->handle, $timeout, $microseconds) === false)
+            throw new StreamError();
     }
 
     public function eof(): bool
     {
-        return feof($this->stream);
+        return feof($this->handle);
     }
 
     public function tell(): int
     {
-        $pos = ftell($this->stream);
-        if (false === $pos) throw new StreamError();
+        $pos = ftell($this->handle);
+        if ($pos === false) throw new StreamError();
         return $pos;
     }
 
     public function seek(int $offset, int $whence = SEEK_SET): void
     {
-        if (-1 === fseek($this->stream, $offset, $whence)) throw new StreamError();
+        if (fseek($this->handle, $offset, $whence) === -1)
+            throw new StreamError();
     }
 
     public function flush(): void
     {
-        if (false === fflush($this->stream)) throw new WriteStreamError();
+        if (fflush($this->handle) === false)
+            throw new WriteStreamError();
     }
 
     public function lock(int $operation, int &$wouldblock = null): void
     {
-        if (false === flock($this->stream, $operation, $wouldblock)) throw new StreamError();
+        if (flock($this->handle, $operation, $wouldblock) === false)
+            throw new StreamError();
     }
 
     public function supportsLocking(): bool
     {
-        return stream_supports_lock($this->stream);
+        return stream_supports_lock($this->handle);
     }
 
     public function status(): array
     {
-        return fstat($this->stream);
+        return fstat($this->handle);
     }
 
     public function meta(): array
     {
-        return stream_get_meta_data($this->stream);
+        return stream_get_meta_data($this->handle);
     }
 
     public function getName(bool $want_peer = true): string
     {
-        $ret = stream_socket_get_name($this->stream, $want_peer);
-        if (false === $ret) throw new StreamError();
+        $ret = stream_socket_get_name($this->handle, $want_peer);
+        if ($ret === false)
+            throw new StreamError();
         return $ret;
     }
 
     public function isTTY(): bool
     {
-        return stream_isatty($this->stream);
+        return stream_isatty($this->handle);
     }
 
     public function isLocal(): bool
     {
-        return stream_is_local($this->stream);
+        return stream_is_local($this->handle);
     }
 
-    public function tls(bool $enable, int $crypto_type = null, ?Stream $reference = null): bool
+    public function tls(bool $enable, int $crypto_type = null, ?self $reference = null): bool
     {
         if ($reference !== null) {
-            $ret = stream_socket_enable_crypto($this->stream, $enable, $crypto_type, $reference->stream);
+            $ret = stream_socket_enable_crypto(
+                $this->handle,
+                $enable,
+                $crypto_type,
+                $reference->stream
+            );
         } else if ($crypto_type !== null) {
-            $ret = stream_socket_enable_crypto($this->stream, $enable, $crypto_type);
+            $ret = stream_socket_enable_crypto(
+                $this->handle,
+                $enable,
+                $crypto_type
+            );
         } else {
-            $ret = stream_socket_enable_crypto($this->stream, $enable);
+            $ret = stream_socket_enable_crypto($this->handle, $enable);
         }
-        if ($ret === false) throw new StreamError();
-        if ($ret === 0) return false;
+        if ($ret === false)
+            throw new StreamError();
+        if ($ret === 0)
+            return false;
         return true;
     }
 }
