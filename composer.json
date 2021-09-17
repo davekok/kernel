@@ -2,17 +2,21 @@
     "name": "davekok/stream",
     "description": "Stream abstraction library",
     "type": "library",
-    "license": "Unlicense",
-    "autoload": {
-        "psr-4": {
-            "DaveKok\\Stream\\": "src/"
-        }
-    },
+    "license": "UNLICENSE",
     "authors": [
         {
             "name": "Dave Kok",
             "email": "email@davekok.nl"
         }
     ],
-    "require": {}
+    "autoload": {
+        "psr-4": {
+            "DaveKok\\Stream\\": "src/",
+            "DaveKok\\Stream\\Tests\\": "tests/"
+        }
+    },
+    "require": {},
+    "require-dev": {
+        "phpunit/phpunit": "^9.5"
+    }
 }

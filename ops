@@ -1,0 +1,49 @@
+#!/bin/bash
+
+set -euo pipefail
+IFS=$'\n\t'
+
+CONTAINER_REGISTRY="ghcr.io"
+SELF="$(readlink -f "$0")"
+DIR="$(dirname "$SELF")"
+ACCOUNT="$(basename "$(dirname "$DIR")")"
+PROJECT="$(basename "$DIR")"
+
+cd "$DIR"
+
+case "${1:-}" in
+    login)
+        podman login "$CONTAINER_REGISTRY"
+        ;;
+
+    build)
+        if [ ! -f "composer.lock" ]
+        then
+            exec "$SELF" update
+        fi
+
+        buildah bud -t "$CONTAINER_REGISTRY/$ACCOUNT/$PROJECT:test" test.containerfile
+        ;;
+
+    update)
+        podman run -it --rm -v ./:/app/ composer composer update --no-install
+        exec "$SELF" build
+        ;;
+
+    push)
+        podman push "$CONTAINER_REGISTRY/$ACCOUNT/$PROJECT:test"
+        ;;
+
+    test)
+        shift
+        podman run -it --rm -v ./src:/app/src -v ./tests:/app/tests "$CONTAINER_REGISTRY/$ACCOUNT/$PROJECT:test" $*
+        ;;
+
+    create-link)
+        ln -s "$SELF" "/usr/local/bin/$PROJECT"
+        ;;
+
+    "")
+        echo "Usage: $0 ( login | build | update | push | test | create-link )"
+        ;;
+esac
