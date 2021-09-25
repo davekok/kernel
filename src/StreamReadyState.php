@@ -4,25 +4,24 @@ declare(strict_types=1);
 
 namespace DaveKok\Stream;
 
-enaum IOReadyState
+enum StreamReadyState
 {
     /**
+     * Indicate protocol is not ready for reading or writing.
+     */
+    case NotReady;
+
+    /**
      * Indicate protocol is ready for a push of input.
-     * ReadReady is removed after every push and must be rearmed.
+     * Once new data has arrived ready state is reset to NotReady and pushInput is called of the protocol.
      */
     case ReadReady;
 
     /**
      * Indicate protocol is ready for a pull of output.
-     * WriteReady is removed after every pull and must be rearmed.
+     * Once stream is ready for writing pullOutput is called and written and ready state is reset to NotReady.
      */
     case WriteReady;
-
-    /**
-     * Indicate protocol is for both ready and writing.
-     * ReadReady and WriteReady are removed afterwards and must be rearmed.
-     */
-    case BothReady;
 
     /**
      * Indicate protocol is finished and stream can be closed.

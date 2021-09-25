@@ -36,7 +36,12 @@ case "${1:-}" in
 
     test)
         shift
-        podman run -it --rm -v ./src:/app/src -v ./tests:/app/tests "$CONTAINER_REGISTRY/$ACCOUNT/$PROJECT:test" $*
+        podman run -it --rm -v ./src:/app/src -v ./tests:/app/tests "$CONTAINER_REGISTRY/$ACCOUNT/$PROJECT:test" php /app/vendor/bin/phpunit /app/tests $*
+        ;;
+
+    php)
+        shift
+        podman run -it --rm -v ./src:/app/src -v ./tests:/app/tests "$CONTAINER_REGISTRY/$ACCOUNT/$PROJECT:test" php $*
         ;;
 
     create-link)
@@ -44,6 +49,6 @@ case "${1:-}" in
         ;;
 
     "")
-        echo "Usage: $0 ( login | build | update | push | test | create-link )"
+        echo "Usage: $0 ( login | build | update | push | test | php | create-link)"
         ;;
 esac
