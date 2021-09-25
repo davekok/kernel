@@ -4,52 +4,79 @@ declare(strict_types=1);
 
 namespace DaveKok\Stream;
 
-/**
- * Façade for this package.
- */
 class StreamState
 {
-    public string $buffer = "";
-    private StreamReadyState $readyState = StreamReadyState::NotReady;
-    private bool $cryptoState = false;
+    private StreamReadyState $currentReadyState = StreamReadyState::NotReady;
+    private StreamReadyState $nextReadyState = StreamReadyState::NotReady;
+    private bool $currentCryptoState = false;
+    private array $nextCryptoState;
+    private bool $currentRunning = false;
+    private bool $nextRunning = false;
 
     public function __construct(
-        private readonly StreamKernelInterface $kernel,
-        private readonly $stream,
+        public readonly string $localName,
+        public readonly string $remoteName
     ) {}
 
     public function setReadyState(StreamReadyState $readyState): void
     {
-        $this->readyState = $this->kernel->updateReadyState($this->stream, $readyState);
+        $this->nextReadyState = $readyState;
     }
 
     public function getReadyState(): StreamReadyState
     {
-        return $this->readyState;
+        return $this->currentReadyState;
     }
 
     public function setCryptoState(bool $enable, int|null $cryptoType = null): void
     {
-        $this->cryptoEnabled = $this->kernel->updateCryptoState($this->stream, $enable, $cryptoType);
+        $this->nextCryptoState = ["enable" => $enable, "cryptoType" => $cryptoType];
     }
 
     public function getCryptoState(): bool
     {
-        return $this->cryptoState;
+        return $this->currentCryptoState;
     }
 
-    public function getLocalName(): string
+    /**
+     * Set whether the stream kernel should continue running.
+     * Effects all streams.
+     */
+    public function setRunningState(bool $running): void
     {
-        return $this->kernel->getLocalName($this->stream);
+        $this->nextRunning = $running;
     }
 
-    public function getRemoteName(): string
+    public function getRunningState(): bool
     {
-        return $this->kernel->getRemoteName($this->stream);
+        return $this->currentRunning;
     }
 
-    public function quitApplication(): void
+    /**
+     * Called by the stream kernel to get the state changes.
+     */
+    public function getStateChanges(): array
     {
-        $this->kernel->quit();
+        return [
+            "readyState"  => $this->nextReadyState            !== $this->currentReadyState  ? $this->nextReadyState  : null,
+            "cryptoState" => $this->nextCryptoState["enable"] !== $this->currentCryptoState ? $this->nextCryptoState : null,
+            "running"     => $this->nextRunning               !== $this->currentRunning     ? $this->nextRunning     : null,
+        ];
+    }
+
+    /**
+     * Called by the stream kernel to commit the new state.
+     */
+    public function commitState(array $state): void
+    {
+        if (isset($state["readyState"]) === true) {
+            $this->currentReadyState = $state["readyState"];
+        }
+        if (isset($state["cryptoState"]) === true) {
+            $this->currentCryptoState = $state["cryptoState"];
+        }
+        if (isset($state["running"]) === true) {
+            $this->currentRunning = $state["running"];
+        }
     }
 }

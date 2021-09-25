@@ -15,7 +15,9 @@
             "DaveKok\\Stream\\Tests\\": "tests/"
         }
     },
-    "require": {},
+    "require": {
+        "psr/log": "^3.0"
+    },
     "require-dev": {
         "phpunit/phpunit": "^9.5"
     }

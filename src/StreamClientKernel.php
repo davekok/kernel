@@ -6,54 +6,34 @@ namespace DaveKok\Stream;
 
 use Throwable;
 
-class StreamClientKernel implements StreamKernelInterface
+class StreamClientKernel extends StreamKernel
 {
-    use UpdateCryptoStateTrait;
-    use StreamMetaTrait;
-
     private readonly StreamState $state;
     private readonly StreamReadyState $readyState;
     private readonly ProtocolInterface $protocol;
-    private readonly $stream;
+    private readonly StreamActiveSocket $stream;
 
-    public function __construct(ProtocolFactoryInterface $protocolFactory, $stream): void
+    public function setStream(StreamActiveSocket $stream): noreturn
     {
-        if (stream_set_chunk_size($stream, StreamKernelInterface::CHUCK_SIZE) === false) {
-            fclose($stream);
-            throw new StreamError("Failed to set chunk size to " . StreamKernelInterface::CHUCK_SIZE . ".");
-        }
         try {
-            $this->stream   = $stream;
-            $this->state    = new StreamState($this, $stream);
-            $this->protocol = $protocolFactory->createProtocol($state);
+            $this->stream = $stream;
+            $this->stream->setChunkSize(self::CHUCK_SIZE);
+
+            $this->state    = new StreamState($this->stream->getLocalName(), $this->stream->getRemoteName());
+            $this->protocol = $protocolFactory->createProtocol($this->state);
         } catch (Throwable $e) {
-            $this->destroyState();
+            $this->close();
             throw $e;
         }
     }
 
-    public function updateReadyState(mixed $stream, StreamReadyState $readyState): StreamReadyState
-    {
-        if (get_resource_id($stream) !== get_resource_id($this->stream)) {
-            throw new StreamError("Wrong stream");
-        }
-        $this->readyState = $readyState;
-
-        return $this->readyState;
-    }
-
-    public function quit(): void
-    {
-        $this->running = false;
-    }
-
     public function run(): noreturn
     {
-        if ($this->running === true) {
-            throw new StreamError("Already running");
-        }
-        $this->running = true;
         try {
+            if ($this->running === true) {
+                throw new StreamError("Already running");
+            }
+            $this->running = true;
             while ($this->running) {
                 switch ($this->readyState) {
                     case StreamReadyState::NotReady:
@@ -68,55 +48,65 @@ class StreamClientKernel implements StreamKernelInterface
                         break;
 
                     case StreamReadyState::Close:
-                        $this->quit();
+                        $this->close();
                         break;
                 }
             }
         } catch (Throwable $e) {
-            echo get_class($e) . ": {$e->getMessage()}\n";
+            $this->close();
+            $this->logger->emergency(get_class($e).": ".$e->getMessage());
         }
-        $this->destroyState();
         exit();
     }
 
-    private function destroyState(): void
+    private function updateState(): void
     {
-        if (isset($this->state->protocol)) {
-            $this->state->protocol->destroyProtocol();
+        $stateChanges = $this->state->getStateChanges();
+        if (isset($stateChanges["readyState"]) === true) {
+            $this->readyState = $stateChanges["readyState"];
         }
-        fclose($this->stream);
+        $this->updateCryptoState($this->stream, $this->protocol, $stateChanges);
+        if (isset($stateChanges["running"]) === true) {
+            $this->running = $stateChanges["running"];
+        }
+        $this->state->updateState($stateChanges);
     }
 
     private function read(): void
     {
-        if (feof($this->stream) === true) {
-            $this->state->protocol->endOfInput();
-            $this->quit();
+        if ($this->stream->endOfStream() === true) {
+            $this->protocol->endOfInput();
+            $this->protocol->updateState($this->state);
             return;
         }
 
-        $buffer = fread($this->stream, StreamKernelInterface::CHUNK_SIZE);
-        if ($buffer === false) {
-            throw new StreamError("Read error");
-        }
-
-        $this->state->buffer = $buffer;
-        $this->state->protocol->pushInput();
-        $this->state->buffer = "";
+        $this->protocol->pushInput($this->stream->read(self::CHUNK_SIZE));
+        $this->protocol->updateState($this->state);
     }
 
     private function write(): void
     {
-        $this->state->protocol->pushOutput();
-        if (strlen($this->state->buffer) === 0) {
+        $buffer = $this->protocol->pushOutput();
+        $length = strlen($buffer);
+        if ($length === 0) {
+            $this->protocol->updateState($this->state);
             return;
         }
 
-        $written = fwrite($this->stream, $this->state->buffer);
-        if ($written === false || strlen($this->state->buffer) !== $written) {
+        $written = $this->stream->write($buffer);
+        if ($written !== strlen($buffer)) {
             throw new StreamError("Write error");
         }
 
-        $this->state->buffer = "";
+        $this->protocol->updateState($this->state);
+    }
+
+    protected function close(): void
+    {
+        if (isset($this->protocol)) {
+            $this->protocol->close();
+        }
+        $this->stream->close();
+        $this->running = false;
     }
 }

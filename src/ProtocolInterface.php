@@ -9,27 +9,27 @@ use Throwable;
 interface ProtocolInterface
 {
     /**
-     * Called when new input has arrived, check buffer of stream state.
+     * Update the stream state.
      */
-    public function pushInput(): void;
+    public function updateState(StreamState $state): void;
 
     /**
-     * Called when there is no more input.
+     * New input has arrived.
+     */
+    public function pushInput(string $buffer): void;
+
+    /**
+     * There is no more input.
      */
     public function endOfInput(): void;
 
     /**
-     * Called when indicated write ready and system is ready to write, fill buffer of stream state.
+     * Return output to write
      */
-    public function pullOuput(): void;
+    public function pullOuput(): string;
 
     /**
-     * Notify that an error has occurred.
+     * Close the protocol
      */
-    public function notifyError(Throwable $throwable): void;
-
-    /**
-     * Destroy
-     */
-    public function destroyProtocol(): void;
+    public function close(): void;
 }
