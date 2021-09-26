@@ -9,5 +9,5 @@ interface ProtocolFactoryInterface
     /**
      * Create a protocol.
      */
-    public function createProtocol(): ProtocolInterface
+    public function createProtocol(): ProtocolInterface;
 }

@@ -18,7 +18,7 @@ class StreamSocket extends Stream
         $handle = match (true) {
             $context !== null => stream_socket_client($url, $errno, $errstr, $timeout, $flags, $context->handle),
             default => stream_socket_client($url, $errno, $errstr, $timeout, $flags)
-        }
+        };
         if ($handle === false) {
             throw new StreamError($errstr, $errno);
         }
@@ -35,7 +35,7 @@ class StreamSocket extends Stream
         $handle = match (true) {
             $context !== null => stream_socket_server($url, $errno, $errstr, $flags, $context->handle),
             default => stream_socket_server($url, $errno, $errstr, $flags)
-        }
+        };
         if ($handle === false) {
             throw new StreamError($errstr, $errno);
         }

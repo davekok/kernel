@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace DaveKok\Stream;
 
+use DaveKok\Stream\StreamContext\Options;
+
 class StreamContext
 {
     protected function __construct(
@@ -15,32 +17,34 @@ class StreamContext
         return new self(stream_context_get_default());
     }
 
-    public static function createContext(): self
+    public static function createContext(Options ...$arrayOfOptions): self
     {
-        return new self(stream_context_create());
+        $array = [];
+        foreach ($arrayOfOptions as $options) {
+            $this->buildArray($options, $array);
+        }
+        return new self(stream_context_create($array));
     }
 
-    public function setOption(string $wrapper, string $option, mixed $value): void
+    private function buildArray(Options $options, array &$array): void
     {
-        if (stream_context_set_option($this->handle, $wrapper, $option, $value) === false) {
-            throw new StreamError("Failed to set option $wrapper::$option = '$value'");
+        $wrapper = $options::WRAPPER;
+        $indexNames = $options::INDEX_NAMES;
+        foreach ($options as $key => $value) {
+            if ($value !== null) {
+                $array[$wrapper][$indexNames[$key]] = $value;
+            }
         }
     }
 
-    public function getOptions(): array
+    private function buildOptions(Options $options, array &$array): void
     {
-        return stream_context_get_options($this->handle);
-    }
-
-    public function setParameters(array $parameters): void
-    {
-        if (stream_context_set_params($this->handle, $parameters) === false) {
-            throw new StreamError("Failed to set option parameters");
+        $wrapper = $options::WRAPPER;
+        $indexNames = $options::INDEX_NAMES;
+        foreach ($options as $key => $value) {
+            if ($value !== null) {
+                $array[$wrapper][$indexNames[$key]] = $value;
+            }
         }
-    }
-
-    public function getParameters(): array
-    {
-        return stream_context_get_params($this->handle);
     }
 }

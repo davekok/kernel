@@ -14,7 +14,7 @@ class StreamActiveSocket extends StreamSocket
         }) {
             false => new StreamError("Negotiation failed for stream '{$this->getId()}'."),
             0 => throw new StreamError("Not enough data please try again '{$this->getId()}'."),
-        }
+        };
     }
 
     public function getRemoteName(): string

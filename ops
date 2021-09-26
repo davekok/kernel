@@ -36,12 +36,24 @@ case "${1:-}" in
 
     test)
         shift
-        podman run -it --rm -v ./src:/app/src -v ./tests:/app/tests "$CONTAINER_REGISTRY/$ACCOUNT/$PROJECT:test" php /app/vendor/bin/phpunit /app/tests $*
+        podman run -it --rm -w /app \
+            -v ./src:/app/src:ro \
+            -v ./tests:/app/tests:ro \
+            -v ./phpunit.xml:/app/phpunit.xml:ro \
+            -v ./docs/coverage:/app/docs/coverage:rw \
+            "$CONTAINER_REGISTRY/$ACCOUNT/$PROJECT:test" \
+            php /app/vendor/bin/phpunit --coverage-html /app/docs/coverage /app/tests "$*"
         ;;
 
-    php)
+    check)
+        podman run -it --rm -w /app -v ./src:/app/src:ro -v ./tests:/app/tests:ro "$CONTAINER_REGISTRY/$ACCOUNT/$PROJECT:test" \
+            find src tests -name "*.php" -type f -exec php -l '{}' \;
+        ;;
+
+
+    bash)
         shift
-        podman run -it --rm -v ./src:/app/src -v ./tests:/app/tests "$CONTAINER_REGISTRY/$ACCOUNT/$PROJECT:test" php $*
+        podman run -it --rm -w /app -v ./src:/app/src -v ./tests:/app/tests "$CONTAINER_REGISTRY/$ACCOUNT/$PROJECT:test" bash
         ;;
 
     create-link)
