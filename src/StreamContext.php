@@ -5,46 +5,33 @@ declare(strict_types=1);
 namespace DaveKok\Stream;
 
 use DaveKok\Stream\StreamContext\Options;
+use DaveKok\Stream\StreamContext\SocketOptions;
+use DaveKok\Stream\StreamContext\CryptoOptions;
 
 class StreamContext
 {
     protected function __construct(
-        protected readonly mixed $handle
+        protected mixed $handle = null
     ) {}
 
-    public static function getDefaultContext(): self
+    public static function createStreamContext(Options $options): self
     {
-        return new self(stream_context_get_default());
+        return new self(stream_context_create($options->toArray()));
     }
 
-    public static function createContext(Options ...$arrayOfOptions): self
+    public function setOptions(Options $options): void
     {
-        $array = [];
-        foreach ($arrayOfOptions as $options) {
-            $this->buildArray($options, $array);
-        }
-        return new self(stream_context_create($array));
-    }
-
-    private function buildArray(Options $options, array &$array): void
-    {
-        $wrapper = $options::WRAPPER;
-        $indexNames = $options::INDEX_NAMES;
-        foreach ($options as $key => $value) {
-            if ($value !== null) {
-                $array[$wrapper][$indexNames[$key]] = $value;
+        foreach ($options->toArray() as $wrapper => $wrapperOptions) {
+            foreach ($wrapperOptions as $key => $value) {
+                if ($value !== null) {
+                    stream_context_set_option($wrapper, $key, $value);
+                }
             }
         }
     }
 
-    private function buildOptions(Options $options, array &$array): void
+    public function getOptions(): Options
     {
-        $wrapper = $options::WRAPPER;
-        $indexNames = $options::INDEX_NAMES;
-        foreach ($options as $key => $value) {
-            if ($value !== null) {
-                $array[$wrapper][$indexNames[$key]] = $value;
-            }
-        }
+        return Options::createFromArray(stream_context_get_options($this->handle));
     }
 }

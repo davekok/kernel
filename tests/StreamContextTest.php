@@ -10,6 +10,7 @@ use PHPUnit\Framework\TestCase;
 /**
  * @coversDefaultClass \DaveKok\Stream\StreamContext
  */
-class StreamContextTest extends TestCase
-{
-}
+// class StreamContextTest extends TestCase
+// {
+
+// }

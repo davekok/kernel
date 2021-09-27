@@ -9,11 +9,6 @@ use Throwable;
 interface ProtocolInterface
 {
     /**
-     * Update the stream state.
-     */
-    public function updateState(StreamState $state): void;
-
-    /**
      * New input has arrived.
      */
     public function pushInput(string $buffer): void;

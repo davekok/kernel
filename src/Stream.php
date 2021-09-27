@@ -4,23 +4,19 @@ declare(strict_types=1);
 
 namespace DaveKok\Stream;
 
-/**
- * A wrapper for PHP stream functions.
- */
 class Stream extends StreamContext
 {
     public static function createStream(
         string $url,
         string $mode,
         bool $use_include_path = false,
-        StreamContext|null $context = null
+        StreamContext $context = null
     ): self
     {
-        $handle = match (true) {
+        return new Stream(match (true) {
             $context !== null => fopen($url, $mode, $use_include_path, $context->handle),
             default => fopen($url, $mode, $use_include_path)
-        };
-        return new Stream($handle);
+        });
     }
 
     public function getId(): int

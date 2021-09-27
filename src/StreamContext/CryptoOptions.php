@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace DaveKok\Stream\StreamContext;
 
-class CryptoOptions extends Options
+class CryptoOptions
 {
     public const WRAPPER = "ssl";
     public const INDEX_NAMES = [
@@ -37,17 +37,17 @@ class CryptoOptions extends Options
         /**
          * Require verification of SSL certificate used.
          */
-        public bool $verifyPeer = true,
+        public bool|null $verifyPeer = null,
 
         /**
          * Require verification of peer name.
          */
-        public bool $verifyPeerName = true,
+        public bool|null $verifyPeerName = null,
 
         /**
          * Allow self-signed certificates. Requires verify_peer.
          */
-        public bool $allowSelfSigned = false,
+        public bool|null $allowSelfSigned = null,
 
         /**
          * Location of Certificate Authority file on local filesystem which should be used with the verify_peer context

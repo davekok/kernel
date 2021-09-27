@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace DaveKok\Stream\StreamContext;
 
-class SocketOptions extends Options
+class SocketOptions
 {
     public const WRAPPER = "socket";
     public const INDEX_NAMES = [
