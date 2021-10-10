@@ -25,7 +25,7 @@ class StreamPassiveSocket extends StreamSocket
         throw new StreamError("Setting chunk size not supported on a passive socket.");
     }
 
-    public function read(int $size): string
+    public function read(int $size = 8192): string
     {
         throw new StreamError("Reading not possible on a passive socket.");
     }

@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace DaveKok\Stream;
 
-interface TimeOutInterface
+interface TimeOut
 {
     /**
      * Return number of seconds from now to next timeout.

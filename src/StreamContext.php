@@ -23,9 +23,7 @@ class StreamContext
     {
         foreach ($options->toArray() as $wrapper => $wrapperOptions) {
             foreach ($wrapperOptions as $key => $value) {
-                if ($value !== null) {
-                    stream_context_set_option($wrapper, $key, $value);
-                }
+                stream_context_set_option($this->handle, $wrapper, $key, $value);
             }
         }
     }

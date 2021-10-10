@@ -8,28 +8,27 @@ use Throwable;
 
 class StreamServerKernel extends StreamKernel
 {
-    private array $streams    = [];
-    private array $states     = [];
-    private array $protocols  = [];
-    private array $factories  = [];
-    private array $readyRead  = [];
-    private array $readyWrite = [];
-    private array $buffers    = [];
+    private array $streams     = [];
+    private array $connections = [];
+    private array $acceptors   = [];
+    private array $readyRead   = [];
+    private array $readyWrite  = [];
+    private array $buffers     = [];
 
     public function __construct(
-        private readonly TimeOutInterface|null $timeout = null
+        private readonly TimeOut|null $timeout = null
     ) {}
 
     /**
      * Add stream to stream kernel
      */
-    public function addStream(StreamPassiveSocket $stream): void
+    public function addStream(StreamPassiveSocket $stream, Acceptor $acceptor): void
     {
         $stream->setBlocking(false);
 
         $id                   = $stream->getId();
         $this->streams[$id]   = $stream;
-        $this->factories[$id] = $protocolFactory;
+        $this->acceptors[$id] = $acceptor;
         $this->readyRead[$id] = $stream;
     }
 
@@ -120,11 +119,11 @@ class StreamServerKernel extends StreamKernel
     private function updateState(StreamActiveSocket $stream): void
     {
         $id = $stream->getId();
-        $stateChanges = $this->states[$id]->getStateChanges();
+        $stateChanges = $this->connections[$id]->getStateChanges();
         $this->updateReadyState($stream, $stateChanges);
         $this->updateCryptoState($stream, $stateChanges);
         $this->updateRunningState($stateChanges);
-        $this->states[$id]->updateState($stateChanges);
+        $this->connections[$id]->updateState($stateChanges);
     }
 
     private function updateReadyState(StreamActiveSocket $stream, array $stateChanges): void
@@ -164,12 +163,12 @@ class StreamServerKernel extends StreamKernel
         }
 
         if ($stream->endOfStream() === true) {
-            $this->protocols[$id]->endOfInput();
+            $this->connections[$id]->endOfInput();
             $this->updateState($stream);
             return;
         }
 
-        $this->protocols[$id]->pushInput($stream->read(self::CHUCK_SIZE));
+        $this->connections[$id]->pushInput($stream->read(self::CHUCK_SIZE));
         $this->updateState($stream);
     }
 
@@ -180,11 +179,11 @@ class StreamServerKernel extends StreamKernel
             $activeStream->setBlocking(false);
             $activeStream->setChunkSize(self::CHUCK_SIZE);
 
-            $state                = new StreamState($activeStream->getLocalName(), $activeStream->getRemoteName());
-            $id                   = $activeStream->getId();
-            $this->streams[$id]   = $activeStream;
-            $this->states[$id]    = $state;
-            $this->protocols[$id] = $this->factories[$passiveStream->getId()]->createProtocol($state);
+            $connection             = new Connection($activeStream->getLocalName(), $activeStream->getRemoteName());
+            $id                     = $activeStream->getId();
+            $this->streams[$id]     = $activeStream;
+            $this->connections[$id] = $connection;
+            $this->acceptors[$passiveStream->getId()]->accept($connection);
             $this->updateState($activeStream);
         } catch (Throwable $e) {
             $this->logger->error(get_class($e).": ".$e->getMessage());
@@ -201,7 +200,7 @@ class StreamServerKernel extends StreamKernel
             $buffer = $this->buffers[$id];
             unset($this->buffers[$id]);
         } else {
-            $buffer = $this->protocols[$id]->pullOutput();
+            $buffer = $this->connections[$id]->pullOutput();
         }
 
         $length = strlen($buffer);
@@ -244,12 +243,11 @@ class StreamServerKernel extends StreamKernel
     private function close(StreamSocket $stream): void
     {
         $id = $stream->getId();
-        if (isset($this->protocols[$id])) {
-            $this->protocols[$id]->destroyProtocol();
+        if (isset($this->connections[$id])) {
+            $this->connections[$id]->close();
         }
+        unset($this->connections[$id]);
         unset($this->streams[$id]);
-        unset($this->protocols[$id]);
-        unset($this->states[$id]);
         unset($this->readyRead[$id]);
         unset($this->readyWrite[$id]);
         unset($this->buffers[$id]);

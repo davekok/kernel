@@ -4,8 +4,13 @@ declare(strict_types=1);
 
 namespace DaveKok\Stream;
 
-class StreamState
+class Connection
 {
+    private Scanner[] $scannerStack;
+    private Scanner|null $currentScanner;
+    private Formatter[] $formatterStack;
+    private Formatter|null $currentFormatter;
+    private Closer[] $closers;
     private StreamReadyState $currentReadyState = StreamReadyState::NotReady;
     private StreamReadyState $nextReadyState = StreamReadyState::NotReady;
     private bool $currentCryptoState = false;
@@ -17,6 +22,56 @@ class StreamState
         public readonly string $localName,
         public readonly string $remoteName
     ) {}
+
+    public function pushScanner(Scanner $scanner): void
+    {
+        if ($this->currentScanner !== null) {
+            $this->scannerStack[] = $this->currentScanner;
+        }
+        $this->currentScanner = $scanner;
+    }
+
+    public function popScanner(): void
+    {
+        $this->currentScanner = array_pop($this->scannerStack);
+    }
+
+    public function getScanner(): Scanner
+    {
+        return $this->currentScanner;
+    }
+
+    public function pushFormatter(Formatter $formatter): void
+    {
+        if ($this->currentFormatter !== null) {
+            $this->formatterStack[] = $this->currentFormatter;
+        }
+        $this->currentFormatter = $formatter;
+    }
+
+    public function popFormatter(): void
+    {
+        $this->currentFormatter = array_pop($this->formatterStack);
+    }
+
+    public function getFormatter(): Formatter
+    {
+        return $this->currentFormatter;
+    }
+
+    public function addCloser(Closer $closer): void
+    {
+        $this->closers[] = $closer;
+    }
+
+    public function removeCloser(CloseEventListener $closer): void
+    {
+        $key = array_search($closer, $this->closers, true);
+        if ($key === false) {
+            return;
+        }
+        unset($this->closers[$key]);
+    }
 
     public function setReadyState(StreamReadyState $readyState): void
     {
@@ -52,6 +107,9 @@ class StreamState
         return $this->currentRunning;
     }
 
+
+// internal package functions
+
     /**
      * Called by the stream kernel to get the state changes.
      */
@@ -78,5 +136,39 @@ class StreamState
         if (isset($state["running"]) === true) {
             $this->currentRunning = $state["running"];
         }
+    }
+
+    public function scan(string $input): void
+    {
+        if ($this->currentScanner === null) {
+            throw new StreamError("No current scanner.");
+        }
+        $this->currentScanner->scan($input);
+    }
+
+    public function endOfInput(): void
+    {
+        $this->currentScanner->endOfInput();
+    }
+
+    public function format(): string
+    {
+        if ($this->currentFormatter === null) {
+            throw new StreamError("No current formatter.");
+        }
+        return $this->currentFormatter->format();
+    }
+
+    public function close(): void
+    {
+        $this->nextReadyState = ReadyState::CLOSE;
+        $this->scannerStack = [];
+        $this->formatterStack = [];
+        $this->currentScanner = null;
+        $this->currentFormatter = null;
+        foreach ($this->closers as $closer) {
+            $closer->close();
+        }
+        $this->closers = [];
     }
 }

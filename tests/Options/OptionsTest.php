@@ -41,9 +41,9 @@ class OptionsTest extends TestCase
     public function testCreateFromArray(): void
     {
         $options = Options::createFromArray(self::DATASET1);
-        static::assertSame("davekok.nl", $options->cryptoOptions->peerName);
-        static::assertSame(false, $options->cryptoOptions->verifyPeer);
-        static::assertSame(128, $options->socketOptions->backLog);
+        static::assertSame("davekok.nl", $options->crypto->peerName);
+        static::assertSame(false, $options->crypto->verifyPeer);
+        static::assertSame(128, $options->socket->backLog);
     }
 
     /**
@@ -52,9 +52,9 @@ class OptionsTest extends TestCase
     public function testCreateFromArrayWithUnknownWrapper(): void
     {
         $options = Options::createFromArray(self::DATASET2);
-        static::assertSame("davekok.nl", $options->cryptoOptions->peerName);
-        static::assertSame(false, $options->cryptoOptions->verifyPeer);
-        static::assertNull($options->socketOptions);
+        static::assertSame("davekok.nl", $options->crypto->peerName);
+        static::assertSame(false, $options->crypto->verifyPeer);
+        static::assertNull($options->socket);
     }
 
     /**

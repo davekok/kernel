@@ -9,8 +9,8 @@ use ReflectionClass;
 class Options
 {
     public function __construct(
-        public SocketOptions|null $socketOptions = null,
-        public CryptoOptions|null $cryptoOptions = null
+        public SocketOptions|null $socket = null,
+        public CryptoOptions|null $crypto = null
     )
     {}
 

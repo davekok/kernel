@@ -22,16 +22,18 @@ case "${1:-}" in
             exec "$SELF" update
         fi
 
-        buildah bud -t "$CONTAINER_REGISTRY/$ACCOUNT/$PROJECT:test" test.containerfile
+        buildah bud -t "$CONTAINER_REGISTRY/$ACCOUNT/$PROJECT:dev" dev.containerfile
         ;;
 
-    update)
-        podman run -it --rm -v ./:/app/ composer composer update --no-install
+    update | require)
+        CMD="$1"
+        shift
+        podman run -it --rm -v ./:/app/ composer composer "$CMD" --no-install $*
         exec "$SELF" build
         ;;
 
     push)
-        podman push "$CONTAINER_REGISTRY/$ACCOUNT/$PROJECT:test"
+        podman push "$CONTAINER_REGISTRY/$ACCOUNT/$PROJECT:dev"
         ;;
 
     test)
@@ -41,26 +43,21 @@ case "${1:-}" in
             -v ./tests:/app/tests:ro \
             -v ./phpunit.xml:/app/phpunit.xml:ro \
             -v ./docs/coverage:/app/docs/coverage:rw \
-            "$CONTAINER_REGISTRY/$ACCOUNT/$PROJECT:test" \
+            "$CONTAINER_REGISTRY/$ACCOUNT/$PROJECT:dev" \
             php /app/vendor/bin/phpunit --coverage-html /app/docs/coverage /app/tests "$*"
         ;;
 
     check)
-        podman run -it --rm -w /app -v ./src:/app/src:ro -v ./tests:/app/tests:ro "$CONTAINER_REGISTRY/$ACCOUNT/$PROJECT:test" \
-            find src tests -name "*.php" -type f -exec php -l '{}' \;
+        podman run -it --rm -w /app -v ./src:/app/src:ro -v ./tests:/app/tests:ro "$CONTAINER_REGISTRY/$ACCOUNT/$PROJECT:dev" \
+            find src tests -name "*.php" -type f -exec php -l "{}" \;
         ;;
-
 
     bash)
         shift
-        podman run -it --rm -w /app -v ./src:/app/src -v ./tests:/app/tests "$CONTAINER_REGISTRY/$ACCOUNT/$PROJECT:test" bash
-        ;;
-
-    create-link)
-        ln -s "$SELF" "/usr/local/bin/$PROJECT"
+        podman run -it --rm -w /app -v ./src:/app/src -v ./tests:/app/tests "$CONTAINER_REGISTRY/$ACCOUNT/$PROJECT:dev" bash
         ;;
 
     "")
-        echo "Usage: $0 ( login | build | update | push | test | php | create-link)"
+        echo "Usage: $0 ( login | build | update | require | push | test | check | bash)"
         ;;
 esac

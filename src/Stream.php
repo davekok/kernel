@@ -9,14 +9,23 @@ class Stream extends StreamContext
     public static function createStream(
         string $url,
         string $mode,
-        bool $use_include_path = false,
+        bool $useIncludePath = false,
         StreamContext $context = null
     ): self
     {
-        return new Stream(match (true) {
-            $context !== null => fopen($url, $mode, $use_include_path, $context->handle),
-            default => fopen($url, $mode, $use_include_path)
-        });
+        $handle = match (true) {
+            $context !== null => fopen($url, $mode, $useIncludePath, $context->handle),
+            default => fopen($url, $mode, $useIncludePath)
+        };
+        if ($handle === false) {
+            throw new StreamError("Failed to create stream.");
+        }
+        return new Stream($handle);
+    }
+
+    public function __destruct()
+    {
+        fclose($this->handle);
     }
 
     public function getId(): int
@@ -29,7 +38,7 @@ class Stream extends StreamContext
         return feof($this->handle);
     }
 
-    public function read(int $size): string
+    public function read(int $size = 8192): string
     {
         $buffer = fread($this->handle, $size);
         if ($buffer === false) {
@@ -45,11 +54,6 @@ class Stream extends StreamContext
             throw new StreamError("Write error for stream {$this->getId()}.");
         }
         return $written;
-    }
-
-    public function close(): void
-    {
-        fclose($this->handle);
     }
 
     public function setBlocking(bool $blocking): void
