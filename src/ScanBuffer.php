@@ -25,7 +25,7 @@ class ScanBuffer
     /**
      * Add input
      */
-    public function add(string $input): Buffer
+    public function add(string $input): self
     {
         // discard everthing before mark
         if ($this->mark > 0) {
@@ -57,7 +57,7 @@ class ScanBuffer
     /**
      * Mark current offset.
      */
-    public function mark(): Buffer
+    public function mark(): self
     {
         $this->mark = $this->offset;
         return $this;
@@ -66,7 +66,7 @@ class ScanBuffer
     /**
      * Move offset to next byte in buffer.
      */
-    public function next(): Buffer
+    public function next(): self
     {
         ++$this->offset;
         return $this;
