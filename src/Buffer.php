@@ -38,40 +38,61 @@ class Buffer
         return $this;
     }
 
+    /**
+     * Is buffer still valid
+     */
     public function valid(): bool
     {
         return $this->offset < strlen($this->buffer);
     }
 
+    /**
+     * Peek at current byte in buffer.
+     */
     public function peek(): int
     {
         return ord($this->buffer[$this->offset]);
     }
 
+    /**
+     * Mark current offset.
+     */
     public function mark(): Buffer
     {
         $this->mark = $this->offset;
         return $this;
     }
 
+    /**
+     * Move offset to next byte in buffer.
+     */
     public function next(): Buffer
     {
         ++$this->offset;
         return $this;
     }
 
-    public function get(): string
+    /**
+     * Get all bytes from mark to current offset as string
+     */
+    public function getString(): string
     {
-        return substr($this->buffer, $this->mark, strlen($this->buffer) - $this->mark);
+        return substr($this->buffer, $this->mark, $this->offset - $this->mark);
     }
 
-    public function getFloat(): float
-    {
-        return (float)$this->get();
-    }
-
+    /**
+     * Get all bytes from mark to current offset as int
+     */
     public function getInt(): int
     {
-        return (int)$this->get();
+        return (int)$this->getString();
+    }
+
+    /**
+     * Get all bytes from mark to current offset as float
+     */
+    public function getFloat(): float
+    {
+        return (float)$this->getString();
     }
 }
