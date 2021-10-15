@@ -4,12 +4,12 @@ declare(strict_types=1);
 
 namespace davekok\stream;
 
-class Buffer
+class ScanBuffer
 {
     public function __construct(
         private string $buffer = "",
-        private int $mark = 0,
-        private int $offset = 0
+        private int $mark      = 0,
+        private int $offset    = 0
     ) {}
 
     /**
@@ -19,7 +19,7 @@ class Buffer
     {
         $this->buffer = "";
         $this->offset = 0;
-        $this->mark = 0;
+        $this->mark   = 0;
     }
 
     /**
