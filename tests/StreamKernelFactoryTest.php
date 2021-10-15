@@ -2,18 +2,18 @@
 
 declare(strict_types=1);
 
-namespace DaveKok\Stream\Tests;
+namespace davekok\stream\tests;
 
-use DaveKok\Stream\StreamClientKernel;
-use DaveKok\Stream\StreamKernelFactory;
-use DaveKok\Stream\StreamServerKernel;
-use DaveKok\Stream\TimeOutInterface;
+use davekok\stream\StreamClientKernel;
+use davekok\stream\StreamKernelFactory;
+use davekok\stream\StreamServerKernel;
+use davekok\stream\TimeOutInterface;
 use PHPUnit\Framework\TestCase;
 
 /**
- * @coversDefaultClass \DaveKok\Stream\StreamKernelFactory
- * @uses \DaveKok\Stream\StreamClientKernel
- * @uses \DaveKok\Stream\StreamServerKernel
+ * @coversDefaultClass \davekok\stream\StreamKernelFactory
+ * @uses \davekok\stream\StreamClientKernel
+ * @uses \davekok\stream\StreamServerKernel
  */
 class StreamKernelFactoryTest extends TestCase
 {

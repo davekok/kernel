@@ -2,11 +2,11 @@
 
 declare(strict_types=1);
 
-namespace DaveKok\Stream;
+namespace davekok\stream;
 
-use DaveKok\Stream\StreamContext\Options;
-use DaveKok\Stream\StreamContext\SocketOptions;
-use DaveKok\Stream\StreamContext\CryptoOptions;
+use davekok\stream\context\Options;
+use davekok\stream\context\SocketOptions;
+use davekok\stream\context\CryptoOptions;
 
 class StreamContext
 {

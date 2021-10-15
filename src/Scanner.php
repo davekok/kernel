@@ -2,10 +2,15 @@
 
 declare(strict_types=1);
 
-namespace DaveKok\Stream;
+namespace davekok\stream;
 
-class Scanner
+interface Scanner
 {
+    /**
+     * Reset scanner.
+     */
+    public function reset(): void;
+
     /**
      * Called when new input has arrived.
      */

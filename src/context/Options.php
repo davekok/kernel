@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace DaveKok\Stream\StreamContext;
+namespace davekok\stream\context;
 
 use ReflectionClass;
 

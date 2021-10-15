@@ -11,8 +11,8 @@
     ],
     "autoload": {
         "psr-4": {
-            "DaveKok\\Stream\\": "src/",
-            "DaveKok\\Stream\\Tests\\": "tests/"
+            "davekok\\stream\\": "src/",
+            "davekok\\stream\\tests\\": "tests/"
         }
     },
     "require": {

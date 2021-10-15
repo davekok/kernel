@@ -2,19 +2,19 @@
 
 declare(strict_types=1);
 
-namespace DaveKok\Stream\Tests;
+namespace davekok\stream\tests;
 
-use DaveKok\Stream\StreamContext;
-use DaveKok\Stream\StreamContext\CryptoOptions;
-use DaveKok\Stream\StreamContext\Options;
-use DaveKok\Stream\StreamContext\SocketOptions;
+use davekok\stream\context;
+use davekok\stream\context\CryptoOptions;
+use davekok\stream\context\Options;
+use davekok\stream\context\SocketOptions;
 use PHPUnit\Framework\TestCase;
 
 /**
- * @coversDefaultClass \DaveKok\Stream\StreamContext
- * @uses \DaveKok\Stream\StreamContext\CryptoOptions
- * @uses \DaveKok\Stream\StreamContext\Options
- * @uses \DaveKok\Stream\StreamContext\SocketOptions
+ * @coversDefaultClass \davekok\stream\context
+ * @uses \davekok\stream\context\CryptoOptions
+ * @uses \davekok\stream\context\Options
+ * @uses \davekok\stream\context\SocketOptions
  */
 class StreamContextTest extends TestCase
 {

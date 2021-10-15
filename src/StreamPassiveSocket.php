@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace DaveKok\Stream;
+namespace davekok\stream;
 
 /**
  * A passive socket or unconnected socket is a socket listening on a port for incoming connections.

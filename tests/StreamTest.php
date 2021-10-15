@@ -2,21 +2,21 @@
 
 declare(strict_types=1);
 
-namespace DaveKok\Stream\Tests;
+namespace davekok\stream\tests;
 
-use DaveKok\Stream\Stream;
-use DaveKok\Stream\StreamContext;
-use DaveKok\Stream\StreamContext\CryptoOptions;
-use DaveKok\Stream\StreamContext\Options;
-use DaveKok\Stream\StreamContext\SocketOptions;
+use davekok\stream\Stream;
+use davekok\stream\context;
+use davekok\stream\context\CryptoOptions;
+use davekok\stream\context\Options;
+use davekok\stream\context\SocketOptions;
 use PHPUnit\Framework\TestCase;
 use org\bovigo\vfs\vfsStream;
 
 /**
- * @coversDefaultClass \DaveKok\Stream\Stream
- * @uses \DaveKok\Stream\StreamContext
- * @uses \DaveKok\Stream\StreamContext\Options
- * @uses \DaveKok\Stream\StreamContext\SocketOptions
+ * @coversDefaultClass \davekok\stream\Stream
+ * @uses \davekok\stream\context
+ * @uses \davekok\stream\context\Options
+ * @uses \davekok\stream\context\SocketOptions
  * @covers ::__construct
  * @covers ::createStream
  * @covers ::__destruct

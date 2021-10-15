@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace DaveKok\Stream;
+namespace davekok\stream;
 
 interface Closer
 {
