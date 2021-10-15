@@ -7,7 +7,7 @@ namespace davekok\stream\tests;
 use davekok\stream\StreamClientKernel;
 use davekok\stream\StreamKernelFactory;
 use davekok\stream\StreamServerKernel;
-use davekok\stream\TimeOutInterface;
+use davekok\stream\TimeOut;
 use PHPUnit\Framework\TestCase;
 
 /**
@@ -40,7 +40,7 @@ class StreamKernelFactoryTest extends TestCase
      */
     public function testCreateServerWithTimeout(): void
     {
-        $timeout = $this->createMock(TimeOutInterface::class);
+        $timeout = $this->createMock(TimeOut::class);
         $factory = new StreamKernelFactory();
         static::assertEquals(new StreamServerKernel($timeout), $factory->createServerKernel($timeout));
     }

@@ -14,7 +14,7 @@ use org\bovigo\vfs\vfsStream;
 
 /**
  * @coversDefaultClass \davekok\stream\Stream
- * @uses \davekok\stream\context
+ * @uses \davekok\stream\StreamContext
  * @uses \davekok\stream\context\Options
  * @uses \davekok\stream\context\SocketOptions
  * @covers ::__construct

@@ -4,14 +4,14 @@ declare(strict_types=1);
 
 namespace davekok\stream\tests;
 
-use davekok\stream\context;
+use davekok\stream\StreamContext;
 use davekok\stream\context\CryptoOptions;
 use davekok\stream\context\Options;
 use davekok\stream\context\SocketOptions;
 use PHPUnit\Framework\TestCase;
 
 /**
- * @coversDefaultClass \davekok\stream\context
+ * @coversDefaultClass \davekok\stream\StreamContext
  * @uses \davekok\stream\context\CryptoOptions
  * @uses \davekok\stream\context\Options
  * @uses \davekok\stream\context\SocketOptions

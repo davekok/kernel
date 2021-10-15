@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace davekok\stream;
 
-class Formatter
+interface Formatter
 {
     /**
      * Called when ready to send output.

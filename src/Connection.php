@@ -6,11 +6,11 @@ namespace davekok\stream;
 
 class Connection
 {
-    private Scanner[] $scannerStack;
+    private array $scannerStack;
     private Scanner|null $currentScanner;
-    private Formatter[] $formatterStack;
+    private array $formatterStack;
     private Formatter|null $currentFormatter;
-    private Closer[] $closers;
+    private array $closers;
     private StreamReadyState $currentReadyState = StreamReadyState::NotReady;
     private StreamReadyState $nextReadyState = StreamReadyState::NotReady;
     private bool $currentCryptoState = false;
