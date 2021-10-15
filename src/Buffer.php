@@ -25,7 +25,7 @@ class Buffer
     /**
      * Add input
      */
-    public function add(string $input): void
+    public function add(string $input): Buffer
     {
         // discard everthing before mark
         if ($this->mark > 0) {
@@ -35,6 +35,7 @@ class Buffer
         }
         // add input to buffer
         $this->buffer .= $input;
+        return $this;
     }
 
     public function valid(): bool
@@ -42,14 +43,21 @@ class Buffer
         return $this->offset < strlen($this->buffer);
     }
 
-    public function next(): int
+    public function peek(): int
     {
-        return ord($this->buffer[$this->offset++]);
+        return ord($this->buffer[$this->offset]);
     }
 
-    public function mark(): void
+    public function mark(): Buffer
     {
         $this->mark = $this->offset;
+        return $this;
+    }
+
+    public function next(): Buffer
+    {
+        ++$this->offset;
+        return $this;
     }
 
     public function get(): string

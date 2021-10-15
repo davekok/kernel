@@ -57,6 +57,11 @@ case "${1:-}" in
         podman run -it --rm -w /app -v ./src:/app/src -v ./tests:/app/tests "$CONTAINER_REGISTRY/$ACCOUNT/$PROJECT:dev" bash
         ;;
 
+    git)
+        shift
+        podman run -it --rm -v .:/app -w /app bitnami/git git $*
+        ;;
+
     "")
         echo "Usage: $0 ( login | build | update | require | push | test | check | bash)"
         ;;
