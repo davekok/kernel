@@ -14,10 +14,11 @@ interface Scanner
     /**
      * Called when new input has arrived.
      */
-    public function scan(string $input): void;
+    public function scan(ScanBuffer $buffer): void;
 
     /**
      * There is no more input.
+     * However, the scan buffer might still contain something you may wish to parse.
      */
-    public function endOfInput(): void;
+    public function endOfInput(ScanBuffer $buffer): void;
 }

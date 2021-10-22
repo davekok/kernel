@@ -6,6 +6,7 @@ namespace davekok\stream;
 
 class Connection
 {
+    private ScanBuffer $scanBuffer;
     private array $scannerStack;
     private Scanner|null $currentScanner;
     private array $formatterStack;
@@ -143,12 +144,12 @@ class Connection
         if ($this->currentScanner === null) {
             throw new StreamError("No current scanner.");
         }
-        $this->currentScanner->scan($input);
+        $this->currentScanner->scan($this->scanBuffer->add($input));
     }
 
     public function endOfInput(): void
     {
-        $this->currentScanner->endOfInput();
+        $this->currentScanner->endOfInput($this->scanBuffer);
     }
 
     public function format(): string
