@@ -39,11 +39,13 @@ class ScanBuffer
     }
 
     /**
-     * Is buffer still valid
+     * Is buffer still valid.
+     *
+     * Optionally specify a lookahead to see if that much is left in the buffer.
      */
-    public function valid(): bool
+    public function valid(int $lookahead = 0): bool
     {
-        return $this->offset < strlen($this->buffer);
+        return ($this->offset + $lookahead) < strlen($this->buffer);
     }
 
     /**
