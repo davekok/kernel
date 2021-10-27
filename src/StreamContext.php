@@ -10,14 +10,9 @@ use davekok\stream\context\CryptoOptions;
 
 class StreamContext
 {
-    protected function __construct(
-        protected mixed $handle = null
+    public function __construct(
+        public readonly mixed $handle = null
     ) {}
-
-    public static function createStreamContext(Options $options): self
-    {
-        return new self(stream_context_create($options->toArray()));
-    }
 
     public function setOptions(Options $options): void
     {

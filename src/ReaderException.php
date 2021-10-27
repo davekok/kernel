@@ -6,4 +6,4 @@ namespace davekok\stream;
 
 use Exception;
 
-class FormatException extends Exception {}
+class ReaderException extends Exception {}

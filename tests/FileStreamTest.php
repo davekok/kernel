@@ -4,34 +4,34 @@ declare(strict_types=1);
 
 namespace davekok\stream\tests;
 
-use davekok\stream\Stream;
 use davekok\stream\context;
 use davekok\stream\context\CryptoOptions;
 use davekok\stream\context\Options;
 use davekok\stream\context\SocketOptions;
-use PHPUnit\Framework\TestCase;
+use davekok\stream\Stream;
+use davekok\stream\StreamFactory;
 use org\bovigo\vfs\vfsStream;
+use PHPUnit\Framework\TestCase;
 
 /**
- * @coversDefaultClass \davekok\stream\Stream
+ * @coversDefaultClass \davekok\stream\FileStream
+ * @covers \davekok\stream\Stream::__destruct
+ * @uses \davekok\stream\StreamFactory
  * @uses \davekok\stream\StreamContext
  * @uses \davekok\stream\context\Options
  * @uses \davekok\stream\context\SocketOptions
- * @covers ::__construct
- * @covers ::createStream
- * @covers ::__destruct
  */
-class StreamTest extends TestCase
+class FileStreamTest extends TestCase
 {
     /**
-     * @covers ::getId
+     * @covers \davekok\stream\Stream::getId
      * @covers ::read
      * @covers ::endOfStream
      */
     public function testRead(): void
     {
         vfsStream::setup("root", structure: ["test" => __FUNCTION__]);
-        $stream = Stream::createStream(vfsStream::url("root/test"), "r");
+        $stream = (new StreamFactory())->createFileStream(vfsStream::url("root/test"), "r");
         static::assertIsInt($stream->getId());
         static::assertSame(__FUNCTION__, $stream->read());
         static::assertTrue($stream->endOfStream());
@@ -43,7 +43,7 @@ class StreamTest extends TestCase
     public function testWrite(): void
     {
         vfsStream::setup("root");
-        Stream::createStream(vfsStream::url("root/test"), "w")->write(__FUNCTION__);
+        (new StreamFactory())->createFileStream(vfsStream::url("root/test"), "w")->write(__FUNCTION__);
         static::assertSame(__FUNCTION__, file_get_contents(vfsStream::url("root/test")));
     }
 }

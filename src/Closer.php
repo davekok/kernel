@@ -7,7 +7,7 @@ namespace davekok\stream;
 interface Closer
 {
     /**
-     * Called when stream is closed.
+     * Called when a socket is closed.
      */
     public function close(): void;
 }

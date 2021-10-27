@@ -7,7 +7,7 @@ namespace davekok\stream;
 interface Acceptor
 {
     /**
-     * Accept a connection
+     * Accept a socket.
      */
-    public function accept(Connection $connection): void;
+    public function accept(Socket $socket): void;
 }

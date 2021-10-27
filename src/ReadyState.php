@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace davekok\stream;
 
-enum StreamReadyState
+enum ReadyState
 {
     /**
      * Indicate protocol is not ready for reading or writing.

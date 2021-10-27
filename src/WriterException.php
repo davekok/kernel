@@ -6,4 +6,4 @@ namespace davekok\stream;
 
 use Exception;
 
-class ScanException extends Exception {}
+class WriterException extends Exception {}

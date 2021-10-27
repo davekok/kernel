@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace davekok\stream;
 
-class ScanBuffer
+class ReaderBuffer
 {
     public function __construct(
         private string $buffer = "",
