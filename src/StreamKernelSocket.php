@@ -10,12 +10,12 @@ namespace davekok\stream;
 class StreamKernelSocket implements Socket
 {
     private ReaderBuffer $readerBuffer;
-    private array $readerStack;
-    private Reader|null $currentReader;
+    private array $readerStack = [];
+    private Reader|null $currentReader = null;
     private WriterBuffer $writerBuffer;
-    private array $writerStack;
-    private Writer|null $currentWriter;
-    private array $closers;
+    private array $writerStack = [];
+    private Writer|null $currentWriter = null;
+    private array $closers = [];
     private SocketState $currentSocketState;
     private SocketState $nextSocketState;
 
@@ -23,6 +23,8 @@ class StreamKernelSocket implements Socket
         public readonly string $localName,
         public readonly string $remoteName
     ) {
+        $this->readerBuffer = new ReaderBuffer();
+        $this->writerBuffer = new WriterBuffer();
         $this->currentSocketState = new SocketState(ReadyState::NotReady, false, null, true);
         $this->nextSocketState = new SocketState(ReadyState::NotReady, false, null, true);
     }
@@ -181,7 +183,7 @@ class StreamKernelSocket implements Socket
 
     public function close(): void
     {
-        $this->nextReadyState = ReadyState::CLOSE;
+        $this->nextReadyState = ReadyState::Close;
         $this->readerStack = [];
         $this->writerStack = [];
         $this->currentReader = null;

@@ -75,6 +75,19 @@ class ReaderBuffer
     }
 
     /**
+     * Move offset to back one byte in buffer.
+     */
+    public function back(int $by = 1): self
+    {
+        $this->offset -= $by;
+        if ($this->offset < $this->mark) {
+            $this->offset = $this->mark;
+            throw new ReaderException("Can not move back past mark.");
+        }
+        return $this;
+    }
+
+    /**
      * Get all bytes from mark to current offset as string
      */
     public function getString(): string
@@ -96,5 +109,10 @@ class ReaderBuffer
     public function getFloat(): float
     {
         return (float)$this->getString();
+    }
+
+    public function __toString(): string
+    {
+        return addcslashes(substr($this->buffer, $this->offset, 10), "\r\n\t\0");
     }
 }

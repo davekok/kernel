@@ -96,17 +96,4 @@ class StreamFactoryTest extends TestCase
         $options = $context->getOptions();
         static::assertEquals($backLog, $options->socket->backLog);
     }
-
-    /**
-     * @covers ::createStreamContext
-     * @covers ::createContext
-     */
-    public function testCreateContextFromArray(): void
-    {
-        $backLog = random_int(10, 50);
-        $factory = new StreamFactory();
-        $context = $factory->createStreamContext(["socket"=>["backlog"=>$backLog]]);
-        $options = $context->getOptions();
-        static::assertEquals($backLog, $options->socket->backLog);
-    }
 }

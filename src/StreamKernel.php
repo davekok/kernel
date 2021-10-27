@@ -9,13 +9,15 @@ use Throwable;
 
 class StreamKernel
 {
-    public const CHUCK_SIZE    = 1400;
+    public const CHUNK_SIZE    = 1400;
     private bool  $running     = false;
     private array $streams     = [];
     private array $sockets     = [];
     private array $acceptors   = [];
     private array $readyRead   = [];
     private array $readyWrite  = [];
+    private array $selectRead  = [];
+    private array $selectWrite = [];
 
     public function __construct(
         private readonly LoggerInterface $logger,
@@ -30,7 +32,7 @@ class StreamKernel
         if ($stream instanceof ActiveSocketStream === true) {
             try {
                 $stream->setBlocking(false);
-                $stream->setChunkSize(self::CHUCK_SIZE);
+                $stream->setChunkSize(self::CHUNK_SIZE);
 
                 $socket               = new StreamKernelSocket($stream->getLocalName(), $stream->getRemoteName());
                 $id                   = $stream->getId();
@@ -40,7 +42,7 @@ class StreamKernel
                 $acceptor->accept($socket);
                 $this->updateState($stream);
             } catch (Throwable $e) {
-                $this->logger->error(get_class($e).": ".$e->getMessage());
+                $this->logger->error($this->formatThrowable($e));
                 $this->close($stream);
             }
         } else if ($stream instanceof PassiveSocketStream === true) {
@@ -52,7 +54,7 @@ class StreamKernel
                 $this->acceptors[$id] = $acceptor;
                 $this->readyRead[$id] = $stream->handle;
             } catch (Throwable $e) {
-                $this->logger->error(get_class($e).": ".$e->getMessage());
+                $this->logger->error($this->formatThrowable($e));
                 $this->close($stream);
             }
         } else {
@@ -74,61 +76,69 @@ class StreamKernel
                 throw new StreamError("Already running.");
             }
             $this->running = true;
+
+            // do some setup
+            error_reporting(E_ERROR|E_PARSE|E_CORE_ERROR|E_CORE_WARNING|E_COMPILE_ERROR|E_COMPILE_WARNING|E_STRICT);
+            set_error_handler($this->errorHandler(...),
+                E_WARNING|E_NOTICE|E_USER_ERROR|E_USER_WARNING|E_USER_NOTICE|E_RECOVERABLE_ERROR|E_DEPRECATED);
             pcntl_signal(SIGHUP , $this->quit(...));
             pcntl_signal(SIGINT , $this->quit(...));
             pcntl_signal(SIGQUIT, $this->quit(...));
             pcntl_signal(SIGTERM, $this->quit(...));
+
+            $this->logger->info("running ...");
             while ($this->running) {
                 try {
-                    $streams = $this->select();
-                    if ($streams === null) continue;
-                    [$readStreams, $writeStreams] = $streams;
-                    foreach ($readStreams as $stream) {
+                    if ($this->select() === false) continue;
+                    foreach ($this->selectRead as $stream) {
                         $stream = $this->streams[get_resource_id($stream)];
                         try {
                             $this->read($stream);
                         } catch (Throwable $e) {
-                            $this->logger->error(get_class($e).": ".$e->getMessage());
+                            $this->logger->error($this->formatThrowable($e));
                             $this->close($stream);
                         }
                     }
-                    foreach ($writeStreams as $stream) {
+                    foreach ($this->selectWrite as $stream) {
                         $stream = $this->streams[get_resource_id($stream)];
                         try {
                             $this->write($stream);
                         } catch (Throwable $e) {
-                            $this->logger->error(get_class($e).": ".$e->getMessage());
+                            $this->logger->error($this->formatThrowable($e));
                             $this->close($stream);
                         }
                     }
                 } catch (Throwable $e) {
-                    $this->logger->error(get_class($e).": ".$e->getMessage());
+                    $this->logger->error($this->formatThrowable($e));
                 }
             }
         } catch (Throwable $e) {
-            $this->logger->emergency(get_class($e).": ".$e->getMessage());
+            $this->logger->emergency($this->formatThrowable($e));
         }
         exit();
     }
 
-    private function select(): array|null
+    private function select(): bool
     {
-        $readStreams   = [...$this->readyRead];
-        $writeStreams  = [...$this->readyWrite];
+        $this->selectRead  = [...$this->readyRead];
+        $this->selectWrite = [...$this->readyWrite];
         $exceptStreams = [];
-        $ret = stream_select($readStreams, $writeStreams, $exceptStreams, $this->timeOut());
+        if (count($this->selectRead) === 0 && count($this->selectWrite) === 0) {
+            $this->logger->emergency("no streams to select");
+            exit();
+        }
+        $ret = stream_select($this->selectRead, $this->selectWrite, $exceptStreams, $this->timeOut());
         if ($ret === false) {
-            return null;
+            return false;
         }
         if ($ret === 0) {
             if (isset($this->timeOut) === false) {
-                return null;
+                return false;
             }
             $this->timeOut->timeOut();
-            return null;
+            return false;
         }
-        $this->logger->debug("streams ready: read(".count($readStreams).") write(".count($writeStreams).")");
-        return [$readStreams, $writeStreams];
+        return true;
     }
 
     private function timeOut(): int|null
@@ -150,7 +160,7 @@ class StreamKernel
             try {
                 $this->timeOut->timeOut();
             } catch (Throwable $e) {
-                $this->logger->error(get_class($e).": ".$e->getMessage());
+                $this->logger->error($this->formatThrowable($e));
             }
         }
 
@@ -160,71 +170,55 @@ class StreamKernel
 
     private function updateState(ActiveSocketStream $stream): void
     {
-        $id = $stream->getId();
+        $id         = $stream->getId();
         $statePatch = $this->sockets[$id]->getStateDiff();
-        $this->updateReadyState($stream, $statePatch);
-        $this->updateCryptoState($stream, $statePatch);
-        $this->updateRunningState($statePatch);
+
+        if ($statePatch->readyState !== null) {
+            switch ($statePatch->readyState) {
+                case ReadyState::NotReady:
+                    unset($this->readyRead[$id]);
+                    unset($this->readyWrite[$id]);
+                    break;
+
+                case ReadyState::ReadReady:
+                    $this->readyRead[$id] = $stream->handle;
+                    unset($this->readyWrite[$id]);
+                    break;
+
+                case ReadyState::WriteReady:
+                    unset($this->readyRead[$id]);
+                    $this->readyWrite[$id] = $stream->handle;
+                    break;
+
+                case ReadyState::Close:
+                    $this->close($stream);
+                    return;
+            }
+        }
+
+        if ($statePatch->cryptoStateEnable !== null) {
+            try {
+                $stream->setBlocking($stream, true);
+                $stream->enableCrypto($statePatch->cryptoStateEnable, $statePatch->cryptoStateType);
+                $stream->setBlocking($stream, false);
+            } catch (Throwable $e) {
+                $statePatch->cryptoStateEnable = !$statePatch->cryptoStateEnable;
+                $this->logger->error($this->formatThrowable($e));
+            }
+        }
+
+        if ($statePatch->running !== null) {
+            // running state can only be set to false, once false it remains false
+            $statePatch->running = $this->running = ($this->running && $statePatch->running);
+        } else {
+            // if no state change then update to current state
+            $statePatch->running = $statePatch->running;
+        }
+
         $this->sockets[$id]->applyState($statePatch);
     }
 
-    private function updateReadyState(ActiveSocketStream $stream, SocketState $statePatch): void
-    {
-        if ($statePatch->readyState === null) {
-            return;
-        }
-
-        $id = $stream->getId();
-        switch ($statePatch->readyState) {
-            case ReadyState::ReadReady:
-                $this->readyRead[$id] = $stream->handle;
-                unset($this->readyWrite[$id]);
-                break;
-
-            case ReadyState::WriteReady:
-                unset($this->readyRead[$id]);
-                $this->readyWrite[$id] = $stream->handle;
-                break;
-
-            case ReadyState::BothReady:
-                $this->readyRead[$id]  = $stream->handle;
-                $this->readyWrite[$id] = $stream->handle;
-                break;
-
-            case ReadyState::Close:
-                $this->close($stream);
-                break;
-        }
-    }
-
-    private function updateCryptoState(Stream $stream, SocketState $statePatch): void
-    {
-        if ($statePatch->cryptoStateEnable === null) {
-            return;
-        }
-
-        try {
-            $stream->setBlocking($stream, true);
-            $stream->enableCrypto($statePatch->cryptoStateEnable, $statePatch->cryptoStateType);
-            $stream->setBlocking($stream, false);
-        } catch (Throwable $e) {
-            $statePatch->cryptoStateEnable = !$statePatch->cryptoStateEnable;
-            throw $e;
-        }
-    }
-
-    private function updateRunningState(SocketState $statePatch): void
-    {
-        // if no state change then update to current state
-        if ($statePatch->running === null) {
-            $statePatch->running = $statePatch->running;
-            return;
-        }
-        // running state can only be set to false, once false it remains false
-        $statePatch->running = $this->running = ($this->running && $statePatch->running);
-    }
-
-    private function read(StreamSocket $stream): void
+    private function read(Stream $stream): void
     {
         if ($stream instanceof PassiveSocketStream) {
             $this->accept($stream);
@@ -241,18 +235,18 @@ class StreamKernel
             return;
         }
 
-        $buffer->add($stream->read(self::CHUCK_SIZE));
-        $reader->read($buffer);
+        $reader->read($buffer->add($stream->read(self::CHUNK_SIZE)));
+
         $this->updateState($stream);
     }
 
     private function accept(PassiveSocketStream $passiveStream): void
     {
-        $this->logger->debug("accepting connnection from " . $activeStream->getRemoteName());
         try {
             $activeStream = $passiveStream->accept();
             $activeStream->setBlocking(false);
-            $activeStream->setChunkSize(self::CHUCK_SIZE);
+            $activeStream->setChunkSize(self::CHUNK_SIZE);
+            $this->logger->info("accepting connnection from " . $activeStream->getRemoteName());
 
             $socket             = new StreamKernelSocket($activeStream->getLocalName(), $activeStream->getRemoteName());
             $id                 = $activeStream->getId();
@@ -261,7 +255,7 @@ class StreamKernel
             $this->acceptors[$passiveStream->getId()]->accept($socket);
             $this->updateState($activeStream);
         } catch (Throwable $e) {
-            $this->logger->error(get_class($e).": ".$e->getMessage());
+            $this->logger->error($this->formatThrowable($e));
             $this->close($activeStream);
         }
     }
@@ -290,7 +284,7 @@ class StreamKernel
             return;
         }
 
-        $written = fwrite($stream, $buffer, $length);
+        $written = $stream->write($chunk, $length);
         if ($written === false) {
             $this->logger->error("Write error");
             $this->close($stream);
@@ -307,6 +301,7 @@ class StreamKernel
 
     private function close(Stream $stream): void
     {
+        $this->logger->info("closing connection to ".$stream->getRemoteName());
         $id = $stream->getId();
         if (isset($this->sockets[$id])) {
             $this->sockets[$id]->close();
@@ -315,6 +310,32 @@ class StreamKernel
         unset($this->streams[$id]);
         unset($this->readyRead[$id]);
         unset($this->readyWrite[$id]);
-        $stream->close();
+    }
+
+    private function formatThrowable(Throwable $e): string
+    {
+        return $e->getMessage()."\n"."## ".$e->getFile()."(".$e->getLine()."): ".get_class($e)."\n".$e->getTraceAsString();
+    }
+
+    private function errorHandler(int $errno, string $errstr, string $errfile, int $errline): bool
+    {
+        switch ($errno) {
+            case E_USER_ERROR:
+            case E_RECOVERABLE_ERROR:
+                $this->logger->error("$errfile($errline): $errstr");
+                break;
+            case E_USER_WARNING:
+                $this->logger->warning("$errfile($errline): $errstr");
+                break;
+            case E_USER_NOTICE:
+            case E_NOTICE:
+                $this->logger->notice("$errfile($errline): $errstr");
+                break;
+            case E_USER_DEPRECATED:
+            default:
+                $this->logger->debug("$errfile($errline): $errstr");
+                break;
+        }
+        return true;
     }
 }

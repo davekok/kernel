@@ -35,6 +35,7 @@ class WriterBuffer
         }
         // add output to buffer
         $this->buffer .= $output;
+        $this->offset += strlen($output);
         return $this;
     }
 

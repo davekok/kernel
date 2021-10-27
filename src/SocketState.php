@@ -13,27 +13,27 @@ class SocketState
         public bool|null $running = null,
     ) {}
 
-    public function diff(SocketState $other): SocketState
+    public function diff(SocketState $with): SocketState
     {
         return new SocketState(
-            readyState: $this->readyState !== $other->readyState ? $this->readyState : null,
-            cryptoStateEnable: $this->cryptoStateEnable !== $other->cryptoStateEnable ? $this->cryptoStateEnable : null,
-            cryptoStateType: $this->cryptoStateType !== $other->cryptoStateType ? $this->cryptoStateType : null,
-            running: $this->running !== $other->running ? $this->running : null,
+            readyState: $this->readyState !== $with->readyState ? $this->readyState : null,
+            cryptoStateEnable: $this->cryptoStateEnable !== $with->cryptoStateEnable ? $this->cryptoStateEnable : null,
+            cryptoStateType: $this->cryptoStateType !== $with->cryptoStateType ? $this->cryptoStateType : null,
+            running: $this->running !== $with->running ? $this->running : null,
         );
     }
 
     public function apply(SocketState $patch): void
     {
-        if ($other->readyState !== null) {
-            $this->readyState = $other->readyState;
+        if ($patch->readyState !== null) {
+            $this->readyState = $patch->readyState;
         }
-        if ($other->cryptoStateEnable !== null) {
-            $this->cryptoStateEnable = $other->cryptoStateEnable;
-            $this->cryptoStateType = $other->cryptoStateType;
+        if ($patch->cryptoStateEnable !== null) {
+            $this->cryptoStateEnable = $patch->cryptoStateEnable;
+            $this->cryptoStateType = $patch->cryptoStateType;
         }
-        if ($other->running !== null) {
-            $this->running = $other->running;
+        if ($patch->running !== null) {
+            $this->running = $patch->running;
         }
     }
 }
