@@ -7,9 +7,10 @@ namespace davekok\stream;
 class ReaderBuffer
 {
     public function __construct(
-        private string $buffer = "",
-        private int $mark      = 0,
-        private int $offset    = 0
+        private string $buffer    = "",
+        private int $mark         = 0,
+        private int $offset       = 0,
+        private bool $isLastChunk = true
     ) {}
 
     /**
@@ -17,9 +18,10 @@ class ReaderBuffer
      */
     public function reset(): void
     {
-        $this->buffer = "";
-        $this->offset = 0;
-        $this->mark   = 0;
+        $this->buffer      = "";
+        $this->offset      = 0;
+        $this->mark        = 0;
+        $this->isLastChunk = true;
     }
 
     /**
@@ -27,6 +29,7 @@ class ReaderBuffer
      */
     public function add(string $input): self
     {
+        $this->isLastChunk = false;
         // discard everthing before mark
         if ($this->mark > 0) {
             $this->buffer = substr($this->buffer, $this->mark);
@@ -36,6 +39,23 @@ class ReaderBuffer
         // add input to buffer
         $this->buffer .= $input;
         return $this;
+    }
+
+    /**
+     * Marks end of stream.
+     */
+    public function end(): self
+    {
+        $this->isLastChunk = true;
+        return $this;
+    }
+
+    /**
+     * Tells whether this is the last chunk of the stream.
+     */
+    public function isLastChunk(): bool
+    {
+        return $this->isLastChunk;
     }
 
     /**

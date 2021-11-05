@@ -18,16 +18,18 @@ class StreamKernel
     private array $readyWrite  = [];
     private array $selectRead  = [];
     private array $selectWrite = [];
+    private array $quitors     = [];
 
     public function __construct(
-        private readonly LoggerInterface $logger,
+        private readonly LoggerInterface $log,
         private readonly TimeOut|null $timeout = null
-    ) {}
+    )
+    {}
 
     /**
      * Add stream to stream kernel
      */
-    public function addStream(Stream $stream, Acceptor $acceptor): self
+    public function addStream(Stream $stream, callback $acceptor): self
     {
         if ($stream instanceof ActiveSocketStream === true) {
             try {
@@ -39,10 +41,10 @@ class StreamKernel
                 $this->streams[$id]   = $stream;
                 $this->sockets[$id]   = $socket;
                 $this->readyRead[$id] = $stream->handle;
-                $acceptor->accept($socket);
+                $acceptor($socket);
                 $this->updateState($stream);
             } catch (Throwable $e) {
-                $this->logger->error($this->formatThrowable($e));
+                $this->log->error($e);
                 $this->close($stream);
             }
         } else if ($stream instanceof PassiveSocketStream === true) {
@@ -54,7 +56,7 @@ class StreamKernel
                 $this->acceptors[$id] = $acceptor;
                 $this->readyRead[$id] = $stream->handle;
             } catch (Throwable $e) {
-                $this->logger->error($this->formatThrowable($e));
+                $this->log->error($e);
                 $this->close($stream);
             }
         } else {
@@ -64,6 +66,38 @@ class StreamKernel
         return $this;
     }
 
+    /**
+     * Remove stream to stream kernel
+     */
+    public function removeStream(Stream $stream): self
+    {
+        $this->close($stream);
+    }
+
+    /**
+     * Add a quitor to the stream kernel, quitors get called when the kernel stops.
+     */
+    public function addQuitor(callback $quitor): self
+    {
+        $this->quitors[] = $quitor;
+    }
+
+    /**
+     * Remove a quitor from the stream kernel.
+     */
+    public function removeQuitor(callback $quitor): self
+    {
+        $key = array_search($quitor, $this->quitors, true);
+        if ($key === false) {
+            return $this;
+        }
+        unset($this->quitors[$key]);
+        return $this;
+    }
+
+    /**
+     * Tell the kernel to stop quit on next pass.
+     */
     public function quit(): void
     {
         $this->running = false;
@@ -77,16 +111,12 @@ class StreamKernel
             }
             $this->running = true;
 
-            // do some setup
-            error_reporting(E_ERROR|E_PARSE|E_CORE_ERROR|E_CORE_WARNING|E_COMPILE_ERROR|E_COMPILE_WARNING|E_STRICT);
-            set_error_handler($this->errorHandler(...),
-                E_WARNING|E_NOTICE|E_USER_ERROR|E_USER_WARNING|E_USER_NOTICE|E_RECOVERABLE_ERROR|E_DEPRECATED);
-            pcntl_signal(SIGHUP , $this->quit(...));
+            // register signals
             pcntl_signal(SIGINT , $this->quit(...));
             pcntl_signal(SIGQUIT, $this->quit(...));
             pcntl_signal(SIGTERM, $this->quit(...));
 
-            $this->logger->info("running ...");
+            $this->log->info("running ...");
             while ($this->running) {
                 try {
                     if ($this->select() === false) continue;
@@ -95,7 +125,7 @@ class StreamKernel
                         try {
                             $this->read($stream);
                         } catch (Throwable $e) {
-                            $this->logger->error($this->formatThrowable($e));
+                            $this->log->error($e);
                             $this->close($stream);
                         }
                     }
@@ -104,16 +134,23 @@ class StreamKernel
                         try {
                             $this->write($stream);
                         } catch (Throwable $e) {
-                            $this->logger->error($this->formatThrowable($e));
+                            $this->log->error($e);
                             $this->close($stream);
                         }
                     }
                 } catch (Throwable $e) {
-                    $this->logger->error($this->formatThrowable($e));
+                    $this->log->error($e);
                 }
             }
         } catch (Throwable $e) {
-            $this->logger->emergency($this->formatThrowable($e));
+            $this->log->emergency($e);
+        }
+        $this->log->info("quiting ...");
+        foreach ($this->streams as $stream) {
+            $this->close($stream);
+        }
+        foreach ($this->quitors as $quitor) {
+            $quitor->quit();
         }
         exit();
     }
@@ -124,7 +161,7 @@ class StreamKernel
         $this->selectWrite = [...$this->readyWrite];
         $exceptStreams = [];
         if (count($this->selectRead) === 0 && count($this->selectWrite) === 0) {
-            $this->logger->emergency("no streams to select");
+            $this->log->emergency("no streams to select");
             exit();
         }
         $ret = stream_select($this->selectRead, $this->selectWrite, $exceptStreams, $this->timeOut());
@@ -160,11 +197,11 @@ class StreamKernel
             try {
                 $this->timeOut->timeOut();
             } catch (Throwable $e) {
-                $this->logger->error($this->formatThrowable($e));
+                $this->log->error($e);
             }
         }
 
-        $this->logger->error("Too many immediate time outs.");
+        $this->log->error("Too many immediate time outs.");
         return null;
     }
 
@@ -203,16 +240,8 @@ class StreamKernel
                 $stream->setBlocking($stream, false);
             } catch (Throwable $e) {
                 $statePatch->cryptoStateEnable = !$statePatch->cryptoStateEnable;
-                $this->logger->error($this->formatThrowable($e));
+                $this->log->error($e);
             }
-        }
-
-        if ($statePatch->running !== null) {
-            // running state can only be set to false, once false it remains false
-            $statePatch->running = $this->running = ($this->running && $statePatch->running);
-        } else {
-            // if no state change then update to current state
-            $statePatch->running = $statePatch->running;
         }
 
         $this->sockets[$id]->applyState($statePatch);
@@ -230,12 +259,12 @@ class StreamKernel
         $buffer = $socket->getReaderBuffer();
 
         if ($stream->endOfStream() === true) {
-            $reader->endOfInput($buffer);
+            $reader($buffer->end());
             $this->updateState($stream);
             return;
         }
 
-        $reader->read($buffer->add($stream->read(self::CHUNK_SIZE)));
+        $reader($buffer->add($stream->read(self::CHUNK_SIZE)));
 
         $this->updateState($stream);
     }
@@ -246,16 +275,16 @@ class StreamKernel
             $activeStream = $passiveStream->accept();
             $activeStream->setBlocking(false);
             $activeStream->setChunkSize(self::CHUNK_SIZE);
-            $this->logger->info("accepting connnection from " . $activeStream->getRemoteName());
+            $this->log->info("accepting connnection from " . $activeStream->getRemoteName());
 
             $socket             = new StreamKernelSocket($activeStream->getLocalName(), $activeStream->getRemoteName());
             $id                 = $activeStream->getId();
             $this->streams[$id] = $activeStream;
             $this->sockets[$id] = $socket;
-            $this->acceptors[$passiveStream->getId()]->accept($socket);
+            $this->acceptors[$passiveStream->getId()]($socket);
             $this->updateState($activeStream);
         } catch (Throwable $e) {
-            $this->logger->error($this->formatThrowable($e));
+            $this->log->error($e);
             $this->close($activeStream);
         }
     }
@@ -268,9 +297,9 @@ class StreamKernel
 
         // check
         if ($buffer->valid() === false) {
-            $writer->write($buffer);
+            $writer($buffer);
             if ($buffer->valid() === false) {
-                $this->logger->debug("Output requested but no output.");
+                $this->log->debug("Output requested but no output.");
                 $this->updateState($stream);
                 return;
             }
@@ -279,14 +308,14 @@ class StreamKernel
         $chunk  = $buffer->getChunk(self::CHUNK_SIZE);
         $length = strlen($chunk);
         if ($length === 0) {
-            $this->logger->debug("Output requested but no output.");
+            $this->log->debug("Output requested but no output.");
             $this->updateState($stream);
             return;
         }
 
         $written = $stream->write($chunk, $length);
         if ($written === false) {
-            $this->logger->error("Write error");
+            $this->log->error("Write error");
             $this->close($stream);
             return;
         }
@@ -301,7 +330,9 @@ class StreamKernel
 
     private function close(Stream $stream): void
     {
-        $this->logger->info("closing connection to ".$stream->getRemoteName());
+        if ($stream instanceof ActiveSocketStream) {
+            $this->log->info("closing connection to ".$stream->getRemoteName());
+        }
         $id = $stream->getId();
         if (isset($this->sockets[$id])) {
             $this->sockets[$id]->close();
@@ -310,32 +341,5 @@ class StreamKernel
         unset($this->streams[$id]);
         unset($this->readyRead[$id]);
         unset($this->readyWrite[$id]);
-    }
-
-    private function formatThrowable(Throwable $e): string
-    {
-        return $e->getMessage()."\n"."## ".$e->getFile()."(".$e->getLine()."): ".get_class($e)."\n".$e->getTraceAsString();
-    }
-
-    private function errorHandler(int $errno, string $errstr, string $errfile, int $errline): bool
-    {
-        switch ($errno) {
-            case E_USER_ERROR:
-            case E_RECOVERABLE_ERROR:
-                $this->logger->error("$errfile($errline): $errstr");
-                break;
-            case E_USER_WARNING:
-                $this->logger->warning("$errfile($errline): $errstr");
-                break;
-            case E_USER_NOTICE:
-            case E_NOTICE:
-                $this->logger->notice("$errfile($errline): $errstr");
-                break;
-            case E_USER_DEPRECATED:
-            default:
-                $this->logger->debug("$errfile($errline): $errstr");
-                break;
-        }
-        return true;
     }
 }

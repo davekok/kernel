@@ -10,7 +10,7 @@ use Psr\Log\NullLogger;
 
 class StreamFactory
 {
-    public function __construct(private LoggerInterface $logger = new NullLogger()) {}
+    public function __construct(private LoggerInterface $log = new NullLogger()) {}
 
     /**
      * Implement the TimeOut if you would like to add cron like abilities to the stream kernel.
@@ -22,7 +22,7 @@ class StreamFactory
      */
     public function createStreamKernel(TimeOut|null $timeOut = null): StreamKernel
     {
-        return new StreamKernel($this->logger, $timeOut);
+        return new StreamKernel($this->log, $timeOut);
     }
 
     public function createStreamContext(StreamContext|Options|array|null $options = null): StreamContext

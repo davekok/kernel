@@ -18,24 +18,12 @@ namespace davekok\stream;
  */
 interface Socket
 {
-    public function unshiftReader(Reader $reader): void;
-    public function shiftReader(): void;
-    public function pushReader(Reader $reader): void;
-    public function popReader(): void;
-    public function setReader(Reader $reader): void;
-    public function getReader(): Reader;
-    public function unshiftWriter(Writer $writer): void;
-    public function shiftWriter(): void;
-    public function pushWriter(Writer $writer): void;
-    public function popWriter(): void;
-    public function setWriter(Writer $writer): void;
-    public function getWriter(): Writer;
-    public function addCloser(Closer $closer): void;
-    public function removeCloser(Closer $closer): void;
+    public function setReader(callback $reader): void;
+    public function getReader(): callback;
+    public function setWriter(callback $writer): void;
+    public function getWriter(): callback;
     public function setReadyState(ReadyState $readyState): void;
     public function getReadyState(): ReadyState;
     public function setCryptoState(bool $enable, int|null $cryptoType = null): void;
     public function getCryptoState(): bool;
-    public function setRunningState(bool $running): void;
-    public function getRunningState(): bool;
 }

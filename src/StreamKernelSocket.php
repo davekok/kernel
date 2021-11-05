@@ -10,12 +10,9 @@ namespace davekok\stream;
 class StreamKernelSocket implements Socket
 {
     private ReaderBuffer $readerBuffer;
-    private array $readerStack = [];
-    private Reader|null $currentReader = null;
+    private mixed $reader = null;
     private WriterBuffer $writerBuffer;
-    private array $writerStack = [];
-    private Writer|null $currentWriter = null;
-    private array $closers = [];
+    private mixed $writer = null;
     private SocketState $currentSocketState;
     private SocketState $nextSocketState;
 
@@ -29,92 +26,24 @@ class StreamKernelSocket implements Socket
         $this->nextSocketState = new SocketState(ReadyState::NotReady, false, null, true);
     }
 
-    public function unshiftReader(Reader $reader): void
+    public function setReader(callback $reader): void
     {
-        if ($this->currentReader !== null) {
-            array_unshift($this->readerStack, $this->currentReader);
-        }
-        $this->currentReader = $reader;
+        $this->reader = $reader;
     }
 
-    public function shiftReader(): void
+    public function getReader(): callback
     {
-        $this->currentReader = array_shift($this->readerStack);
+        return $this->reader;
     }
 
-    public function pushReader(Reader $reader): void
+    public function setWriter(callback $writer): void
     {
-        if ($this->currentReader !== null) {
-            $this->readerStack[] = $this->currentReader;
-        }
-        $this->currentReader = $reader;
+        $this->writer = $writer;
     }
 
-    public function popReader(): void
+    public function getWriter(): callback
     {
-        $this->currentReader = array_pop($this->readerStack);
-    }
-
-    public function setReader(Reader $reader): void
-    {
-        $this->currentReader = $reader;
-        $this->readerStack = [];
-    }
-
-    public function getReader(): Reader
-    {
-        return $this->currentReader;
-    }
-
-    public function unshiftWriter(Writer $writer): void
-    {
-        if ($this->currentWriter !== null) {
-            array_unshift($this->writerStack, $this->currentWriter);
-        }
-        $this->currentWriter = $writer;
-    }
-
-    public function shiftWriter(): void
-    {
-        $this->currentWriter = array_shift($this->writerStack);
-    }
-
-    public function pushWriter(Writer $writer): void
-    {
-        if ($this->currentWriter !== null) {
-            $this->writerStack[] = $this->currentWriter;
-        }
-        $this->currentWriter = $writer;
-    }
-
-    public function popWriter(): void
-    {
-        $this->currentWriter = array_pop($this->writerStack);
-    }
-
-    public function setWriter(Writer $writer): void
-    {
-        $this->currentWriter = $writer;
-        $this->writerStack = [];
-    }
-
-    public function getWriter(): Writer
-    {
-        return $this->currentWriter;
-    }
-
-    public function addCloser(Closer $closer): void
-    {
-        $this->closers[] = $closer;
-    }
-
-    public function removeCloser(Closer $closer): void
-    {
-        $key = array_search($closer, $this->closers, true);
-        if ($key === false) {
-            return;
-        }
-        unset($this->closers[$key]);
+        return $this->writer;
     }
 
     public function setReadyState(ReadyState $readyState): void
@@ -137,21 +66,6 @@ class StreamKernelSocket implements Socket
     {
         return $this->currentSocketState->cryptoStateEnable;
     }
-
-    /**
-     * Set whether the stream kernel should continue running.
-     * Effects all streams.
-     */
-    public function setRunningState(bool $running): void
-    {
-        $this->nextSocketState->Running = $running;
-    }
-
-    public function getRunningState(): bool
-    {
-        return $this->currentSocketState->running;
-    }
-
 
 // internal package functions
 
@@ -184,13 +98,5 @@ class StreamKernelSocket implements Socket
     public function close(): void
     {
         $this->nextReadyState = ReadyState::Close;
-        $this->readerStack = [];
-        $this->writerStack = [];
-        $this->currentReader = null;
-        $this->currentWriter = null;
-        foreach ($this->closers as $closer) {
-            $closer->close();
-        }
-        $this->closers = [];
     }
 }

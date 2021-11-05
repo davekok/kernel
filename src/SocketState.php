@@ -10,7 +10,6 @@ class SocketState
         public ReadyState|null $readyState = null,
         public bool|null $cryptoStateEnable = null,
         public int|null $cryptoStateType = null,
-        public bool|null $running = null,
     ) {}
 
     public function diff(SocketState $with): SocketState
@@ -19,7 +18,6 @@ class SocketState
             readyState: $this->readyState !== $with->readyState ? $this->readyState : null,
             cryptoStateEnable: $this->cryptoStateEnable !== $with->cryptoStateEnable ? $this->cryptoStateEnable : null,
             cryptoStateType: $this->cryptoStateType !== $with->cryptoStateType ? $this->cryptoStateType : null,
-            running: $this->running !== $with->running ? $this->running : null,
         );
     }
 
@@ -31,9 +29,6 @@ class SocketState
         if ($patch->cryptoStateEnable !== null) {
             $this->cryptoStateEnable = $patch->cryptoStateEnable;
             $this->cryptoStateType = $patch->cryptoStateType;
-        }
-        if ($patch->running !== null) {
-            $this->running = $patch->running;
         }
     }
 }
