@@ -32,6 +32,9 @@ function volumes() {
                 VOLUMES+=("-v" "./docs/coverage:/app/docs/coverage:rw")
                 ;;
             dependencies)
+                if [ -d "../log/src" ]; then
+                    VOLUMES+=("-v" "../log/src:/app/vendor/davekok/log/src:ro")
+                fi
                 ;;
         esac
     done

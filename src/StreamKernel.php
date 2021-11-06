@@ -12,13 +12,12 @@ class StreamKernel
     public const CHUNK_SIZE    = 1400;
     private bool  $running     = false;
     private array $streams     = [];
-    private array $sockets     = [];
-    private array $acceptors   = [];
+    private array $activities  = [];
+    private array $factories   = [];
     private array $readyRead   = [];
     private array $readyWrite  = [];
     private array $selectRead  = [];
     private array $selectWrite = [];
-    private array $quitors     = [];
 
     public function __construct(
         private readonly LoggerInterface $log,
@@ -27,22 +26,22 @@ class StreamKernel
     {}
 
     /**
-     * Add stream to stream kernel
+     * Add a stream to stream kernel
      */
-    public function addStream(Stream $stream, callback $acceptor): self
+    public function addStream(Stream $stream, ControllerFactory $factory): self
     {
         if ($stream instanceof ActiveSocketStream === true) {
             try {
                 $stream->setBlocking(false);
                 $stream->setChunkSize(self::CHUNK_SIZE);
 
-                $socket               = new StreamKernelSocket($stream->getLocalName(), $stream->getRemoteName());
-                $id                   = $stream->getId();
-                $this->streams[$id]   = $stream;
-                $this->sockets[$id]   = $socket;
-                $this->readyRead[$id] = $stream->handle;
-                $acceptor($socket);
-                $this->updateState($stream);
+                $activity              = new StreamKernelActivity();
+                $id                    = $stream->getId();
+                $this->streams[$id]    = $stream;
+                $this->activities[$id] = $activity;
+                $this->readyRead[$id]  = $stream->handle;
+                $activity->setController($factory->createController($activity));
+                $this->next($stream);
             } catch (Throwable $e) {
                 $this->log->error($e);
                 $this->close($stream);
@@ -53,7 +52,7 @@ class StreamKernel
 
                 $id                   = $stream->getId();
                 $this->streams[$id]   = $stream;
-                $this->acceptors[$id] = $acceptor;
+                $this->factories[$id] = $factory;
                 $this->readyRead[$id] = $stream->handle;
             } catch (Throwable $e) {
                 $this->log->error($e);
@@ -75,27 +74,6 @@ class StreamKernel
     }
 
     /**
-     * Add a quitor to the stream kernel, quitors get called when the kernel stops.
-     */
-    public function addQuitor(callback $quitor): self
-    {
-        $this->quitors[] = $quitor;
-    }
-
-    /**
-     * Remove a quitor from the stream kernel.
-     */
-    public function removeQuitor(callback $quitor): self
-    {
-        $key = array_search($quitor, $this->quitors, true);
-        if ($key === false) {
-            return $this;
-        }
-        unset($this->quitors[$key]);
-        return $this;
-    }
-
-    /**
      * Tell the kernel to stop quit on next pass.
      */
     public function quit(): void
@@ -103,7 +81,7 @@ class StreamKernel
         $this->running = false;
     }
 
-    public function run(): noreturn
+    public function run(): void
     {
         try {
             if ($this->running === true) {
@@ -149,10 +127,6 @@ class StreamKernel
         foreach ($this->streams as $stream) {
             $this->close($stream);
         }
-        foreach ($this->quitors as $quitor) {
-            $quitor->quit();
-        }
-        exit();
     }
 
     private function select(): bool
@@ -205,46 +179,44 @@ class StreamKernel
         return null;
     }
 
-    private function updateState(ActiveSocketStream $stream): void
+    private function next(ActiveSocketStream $stream): void
     {
-        $id         = $stream->getId();
-        $statePatch = $this->sockets[$id]->getStateDiff();
+        $id       = $stream->getId();
+        $activity = $this->activities[$id];
 
-        if ($statePatch->readyState !== null) {
-            switch ($statePatch->readyState) {
-                case ReadyState::NotReady:
-                    unset($this->readyRead[$id]);
-                    unset($this->readyWrite[$id]);
-                    break;
+        $action = $activity->next();
 
-                case ReadyState::ReadReady:
-                    $this->readyRead[$id] = $stream->handle;
-                    unset($this->readyWrite[$id]);
-                    break;
-
-                case ReadyState::WriteReady:
-                    unset($this->readyRead[$id]);
-                    $this->readyWrite[$id] = $stream->handle;
-                    break;
-
-                case ReadyState::Close:
-                    $this->close($stream);
-                    return;
-            }
+        if ($action instanceof Reader) {
+            $this->readyRead[$id] = $stream->handle;
+            unset($this->readyWrite[$id]);
+        } else if ($action instanceof Writer) {
+            unset($this->readyRead[$id]);
+            $this->readyWrite[$id] = $stream->handle;
+        } else {
+            unset($this->readyRead[$id]);
+            unset($this->readyWrite[$id]);
         }
 
-        if ($statePatch->cryptoStateEnable !== null) {
+        if ($action instanceof StreamKernelCryptoAction) {
             try {
                 $stream->setBlocking($stream, true);
-                $stream->enableCrypto($statePatch->cryptoStateEnable, $statePatch->cryptoStateType);
+                $stream->enableCrypto($action->cryptoStateEnable, $action->cryptoStateType);
                 $stream->setBlocking($stream, false);
             } catch (Throwable $e) {
-                $statePatch->cryptoStateEnable = !$statePatch->cryptoStateEnable;
                 $this->log->error($e);
             }
+            $this->next($stream);
+            return;
         }
 
-        $this->sockets[$id]->applyState($statePatch);
+        if ($action === null) {
+            $this->close($stream);
+        }
+
+        if (is_callable($action)) {
+            $this->log->error("Current action is an arbitrary action. Can't execute closing stream.");
+            $this->close($stream);
+        }
     }
 
     private function read(Stream $stream): void
@@ -254,19 +226,19 @@ class StreamKernel
             return;
         }
 
-        $socket = $this->sockets[$stream->getId()];
-        $reader = $socket->getReader();
-        $buffer = $socket->getReaderBuffer();
+        $activity = $this->activities[$stream->getId()];
+        $reader   = $activity->current();
+        $buffer   = $activity->getReaderBuffer();
 
         if ($stream->endOfStream() === true) {
-            $reader($buffer->end());
-            $this->updateState($stream);
+            $reader->read($buffer->end());
+            $this->next($stream);
             return;
         }
 
-        $reader($buffer->add($stream->read(self::CHUNK_SIZE)));
+        $reader->read($buffer->add($stream->read(self::CHUNK_SIZE)));
 
-        $this->updateState($stream);
+        $this->next($stream);
     }
 
     private function accept(PassiveSocketStream $passiveStream): void
@@ -277,12 +249,12 @@ class StreamKernel
             $activeStream->setChunkSize(self::CHUNK_SIZE);
             $this->log->info("accepting connnection from " . $activeStream->getRemoteName());
 
-            $socket             = new StreamKernelSocket($activeStream->getLocalName(), $activeStream->getRemoteName());
-            $id                 = $activeStream->getId();
-            $this->streams[$id] = $activeStream;
-            $this->sockets[$id] = $socket;
-            $this->acceptors[$passiveStream->getId()]($socket);
-            $this->updateState($activeStream);
+            $activity              = new StreamKernelActivity();
+            $id                    = $activeStream->getId();
+            $this->streams[$id]    = $activeStream;
+            $this->activities[$id] = $activity;
+            $activity->setController($this->factories[$passiveStream->getId()]->createController($activity));
+            $this->next($activeStream);
         } catch (Throwable $e) {
             $this->log->error($e);
             $this->close($activeStream);
@@ -291,16 +263,16 @@ class StreamKernel
 
     private function write(ActiveSocketStream $stream): void
     {
-        $socket = $this->sockets[$stream->getId()];
-        $writer = $socket->getWriter();
-        $buffer = $socket->getWriterBuffer();
+        $activity = $this->activities[$stream->getId()];
+        $writer   = $activity->current();
+        $buffer   = $activity->getWriterBuffer();
 
         // check
         if ($buffer->valid() === false) {
-            $writer($buffer);
+            $writer->write($buffer);
             if ($buffer->valid() === false) {
                 $this->log->debug("Output requested but no output.");
-                $this->updateState($stream);
+                $this->next($stream);
                 return;
             }
         }
@@ -309,7 +281,7 @@ class StreamKernel
         $length = strlen($chunk);
         if ($length === 0) {
             $this->log->debug("Output requested but no output.");
-            $this->updateState($stream);
+            $this->next($stream);
             return;
         }
 
@@ -324,7 +296,7 @@ class StreamKernel
 
         // if nothing left in buffer, update state
         if ($buffer->valid() === false) {
-            $this->updateState($stream);
+            $this->next($stream);
         }
     }
 
@@ -334,10 +306,10 @@ class StreamKernel
             $this->log->info("closing connection to ".$stream->getRemoteName());
         }
         $id = $stream->getId();
-        if (isset($this->sockets[$id])) {
-            $this->sockets[$id]->close();
+        if (isset($this->activities[$id])) {
+            $this->activities[$id]->clear();
         }
-        unset($this->sockets[$id]);
+        unset($this->activities[$id]);
         unset($this->streams[$id]);
         unset($this->readyRead[$id]);
         unset($this->readyWrite[$id]);
