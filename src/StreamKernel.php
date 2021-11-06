@@ -22,8 +22,7 @@ class StreamKernel
     public function __construct(
         private readonly LoggerInterface $log,
         private readonly TimeOut|null $timeout = null
-    )
-    {}
+    ) {}
 
     /**
      * Add a stream to stream kernel

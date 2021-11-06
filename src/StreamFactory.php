@@ -19,7 +19,7 @@ class StreamFactory
 
     public function createStreamKernel(): StreamKernel
     {
-        return $this->kernel ?? new StreamKernel($this->log, $timeOut);
+        return $this->kernel ?? new StreamKernel($this->log, $this->timeOut);
     }
 
     public function createStreamContext(StreamContext|Options|array|null $options = null): StreamContext

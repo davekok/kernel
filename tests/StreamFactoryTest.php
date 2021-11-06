@@ -40,8 +40,8 @@ class StreamFactoryTest extends TestCase
     public function testCreateKernelWithTimeout(): void
     {
         $timeout = $this->createMock(TimeOut::class);
-        $factory = new StreamFactory();
-        static::assertEquals(new StreamKernel(new NullLogger(), $timeout), $factory->createStreamKernel($timeout));
+        $factory = new StreamFactory($timeout);
+        static::assertEquals(new StreamKernel(new NullLogger(), $timeout), $factory->createStreamKernel());
     }
 
     /**
