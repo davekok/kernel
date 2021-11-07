@@ -7,3 +7,4 @@ RUN docker-php-ext-install pcntl && pecl install pcov && docker-php-ext-enable p
 COPY --from=composer /app/vendor /app/vendor
 COPY src /app/src
 COPY tests /app/tests
+WORKDIR /app
