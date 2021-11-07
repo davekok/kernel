@@ -75,19 +75,19 @@ case "${1:-}" in
     test)
         volumes src test phpunit coverage dependencies
         shift
-        podman run -it --rm -w /app "${VOLUMES[@]}" "$ID:dev" \
+        podman run -it --rm "${VOLUMES[@]}" "$ID:dev" \
             php /app/vendor/bin/phpunit --coverage-html /app/docs/coverage /app/tests $*
         ;;
 
     check)
         volumes src test
-        podman run -it --rm -w /app "${VOLUMES[@]}" "$ID:dev" \
+        podman run -it --rm "${VOLUMES[@]}" "$ID:dev" \
             find src tests -name "*.php" -type f -exec php -l "{}" \;
         ;;
 
     bash)
         volumes src test
-        podman run -it --rm -w /app "${VOLUMES[@]}" "$ID:${2:-dev}" bash
+        podman run -it --rm "${VOLUMES[@]}" "$ID:${2:-dev}" bash
         ;;
 
     run)
