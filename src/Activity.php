@@ -65,6 +65,11 @@ namespace davekok\stream;
 interface Activity
 {
     /**
+     * Get info about the underlying stream.
+     */
+    public function getStreamInfo(): StreamInfo;
+
+    /**
      * Starts or resets the activity, and adds a read action.
      */
     public function read(Reader $reader): self;

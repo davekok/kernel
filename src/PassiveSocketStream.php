@@ -17,11 +17,6 @@ class PassiveSocketStream extends Stream
         if ($handle === false) {
             throw new StreamError("Accept failed");
         }
-        return new ActiveSocketStream($handle);
-    }
-
-    public function getLocalName(): string
-    {
-        return stream_socket_get_name($this->handle, false);
+        return new ActiveSocketStream($this->url, $handle);
     }
 }

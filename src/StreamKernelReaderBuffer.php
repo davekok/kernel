@@ -69,9 +69,9 @@ class StreamKernelReaderBuffer implements ReaderBuffer
     }
 
     /**
-     * Peek at current byte in buffer.
+     * Get current byte in buffer.
      */
-    public function peek(): int
+    public function current(): int
     {
         return ord($this->buffer[$this->offset]);
     }
@@ -95,14 +95,14 @@ class StreamKernelReaderBuffer implements ReaderBuffer
     }
 
     /**
-     * Move offset to back one byte in buffer.
+     * Move offset back by X bytes in buffer, cannot move back past mark.
      */
     public function back(int $by = 1): self
     {
         $this->offset -= $by;
         if ($this->offset < $this->mark) {
             $this->offset = $this->mark;
-            throw new ReaderException("Can not move back past mark.");
+            throw new ReaderException("Cannot move back past mark.");
         }
         return $this;
     }

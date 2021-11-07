@@ -20,10 +20,16 @@ class StreamKernelActivity implements Activity
     private mixed $current = null;
 
     public function __construct(
+        private StreamInfo $streamInfo,
         private StreamKernelReaderBuffer $readerBuffer = new StreamKernelReaderBuffer(),
         private StreamKernelWriterBuffer $writerBuffer = new StreamKernelWriterBuffer(),
         private array $actions = [],
     ) {}
+
+    public function getStreamInfo(): StreamInfo
+    {
+        return $this->streamInfo;
+    }
 
     public function read(Reader $reader): self
     {

@@ -24,9 +24,9 @@ interface ReaderBuffer
     public function valid(int $lookahead = 0): bool;
 
     /**
-     * Peek at current byte in buffer.
+     * Get current byte in buffer.
      */
-    public function peek(): int;
+    public function current(): int;
 
     /**
      * Mark current offset.
@@ -39,7 +39,7 @@ interface ReaderBuffer
     public function next(): self;
 
     /**
-     * Move offset to back X bytes in buffer.
+     * Move offset back by X bytes in buffer, cannot move back past mark.
      */
     public function back(int $by = 1): self;
 

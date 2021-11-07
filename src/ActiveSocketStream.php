@@ -17,13 +17,15 @@ class ActiveSocketStream extends FileStream
         };
     }
 
-    public function getLocalName(): string
+    public function getLocalUrl(): Url
     {
-        return stream_socket_get_name($this->handle, false);
+        [$host, $port] = explode(":", stream_socket_get_name($this->handle, false));
+        return new Url(scheme: $this->url->scheme, host: $host, port: (int)$port);
     }
 
-    public function getRemoteName(): string
+    public function getRemoteUrl(): Url
     {
-        return stream_socket_get_name($this->handle, true);
+        [$host, $port] = explode(":", stream_socket_get_name($this->handle, true));
+        return new Url(scheme: $this->url->scheme, host: $host, port: (int)$port);
     }
 }

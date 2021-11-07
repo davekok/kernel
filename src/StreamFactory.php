@@ -28,30 +28,30 @@ class StreamFactory
     }
 
     public function createFileStream(
-        string $url,
+        Url $url,
         string $mode,
         bool $useIncludePath = false,
         StreamContext|Options|array|null $context = null
     ): FileStream
     {
         $handle = match (true) {
-            $context !== null => fopen($url, $mode, $useIncludePath, $this->createContext($context)),
-            default => fopen($url, $mode, $useIncludePath)
+            $context !== null => fopen((string)$url, $mode, $useIncludePath, $this->createContext($context)),
+            default => fopen((string)$url, $mode, $useIncludePath)
         };
         if ($handle === false) {
             throw new StreamError("Failed to create stream.");
         }
-        return new FileStream($handle);
+        return new FileStream($url, $handle);
     }
 
     public function createActiveSocketStream(
-        string $url,
+        Url $url,
         float|null $timeout = null,
         int $flags = STREAM_CLIENT_CONNECT,
         StreamContext|Options|array|null $context = null
     ): ActiveSocketStream
     {
-        $this->validateURL($url);
+        $this->validateUrl($url);
         $timeout ??= ini_get("default_socket_timeout");
         $handle = match (true) {
             $context !== null => stream_socket_client($url, $errno, $errstr, $timeout, $flags, $this->createContext($context)),
@@ -60,24 +60,24 @@ class StreamFactory
         if ($handle === false) {
             throw new StreamError($errstr, $errno);
         }
-        return new ActiveSocketStream($handle);
+        return new ActiveSocketStream($url, $handle);
     }
 
     public function createPassiveSocketStream(
-        string $url,
+        Url $url,
         int $flags = STREAM_SERVER_BIND | STREAM_SERVER_LISTEN,
         StreamContext|Options|array|null $context = null
     ): PassiveSocketStream
     {
-        $this->validateURL($url);
+        $this->validateUrl($url);
         $handle = match (true) {
-            $context !== null => stream_socket_server($url, $errno, $errstr, $flags, $this->createContext($context)),
-            default => stream_socket_server($url, $errno, $errstr, $flags)
+            $context !== null => stream_socket_server((string)$url, $errno, $errstr, $flags, $this->createContext($context)),
+            default => stream_socket_server((string)$url, $errno, $errstr, $flags)
         };
         if ($handle === false) {
             throw new StreamError($errstr, $errno);
         }
-        return new PassiveSocketStream($handle);
+        return new PassiveSocketStream($url, $handle);
     }
 
     private function createContext(StreamContext|Options|array|null $context): mixed
@@ -90,11 +90,10 @@ class StreamFactory
         };
     }
 
-    private function validateURL(string $url): void
+    private function validateUrl(Url $url): void
     {
-        $scheme = parse_url($url, PHP_URL_SCHEME);
-        if (in_array($scheme, stream_get_transports()) === false) {
-            throw new StreamError("Transport not supported '$scheme'.");
+        if (in_array($url->scheme, stream_get_transports()) === false) {
+            throw new StreamError("Transport not supported '{$url->scheme}'.");
         }
     }
 }

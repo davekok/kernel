@@ -34,7 +34,8 @@ class StreamKernel
                 $stream->setBlocking(false);
                 $stream->setChunkSize(self::CHUNK_SIZE);
 
-                $activity              = new StreamKernelActivity();
+                $streamInfo            = new StreamInfo($stream->url, $stream->getLocalUrl(), $stream->getRemoteUrl());
+                $activity              = new StreamKernelActivity($streamInfo);
                 $id                    = $stream->getId();
                 $this->streams[$id]    = $stream;
                 $this->activities[$id] = $activity;
@@ -182,8 +183,7 @@ class StreamKernel
     {
         $id       = $stream->getId();
         $activity = $this->activities[$id];
-
-        $action = $activity->next();
+        $action   = $activity->next();
 
         if ($action instanceof Reader) {
             $this->readyRead[$id] = $stream->handle;
@@ -201,6 +201,7 @@ class StreamKernel
                 $stream->setBlocking($stream, true);
                 $stream->enableCrypto($action->cryptoStateEnable, $action->cryptoStateType);
                 $stream->setBlocking($stream, false);
+                $activity->getInfo()->cryptoEnabled = $action->cryptoStateEnable;
             } catch (Throwable $e) {
                 $this->log->error($e);
             }
@@ -246,9 +247,14 @@ class StreamKernel
             $activeStream = $passiveStream->accept();
             $activeStream->setBlocking(false);
             $activeStream->setChunkSize(self::CHUNK_SIZE);
-            $this->log->info("accepting connnection from " . $activeStream->getRemoteName());
+            $this->log->info("accepting connnection from " . $activeStream->getRemoteUrl());
 
-            $activity              = new StreamKernelActivity();
+            $streamInfo            = new StreamInfo(
+                $passiveStream->url,
+                $activeStream->getLocalUrl(),
+                $activeStream->getRemoteUrl()
+            );
+            $activity              = new StreamKernelActivity($streamInfo);
             $id                    = $activeStream->getId();
             $this->streams[$id]    = $activeStream;
             $this->activities[$id] = $activity;
@@ -302,7 +308,7 @@ class StreamKernel
     private function close(Stream $stream): void
     {
         if ($stream instanceof ActiveSocketStream) {
-            $this->log->info("closing connection to ".$stream->getRemoteName());
+            $this->log->info("closing connection to ".$stream->getRemoteUrl());
         }
         $id = $stream->getId();
         if (isset($this->activities[$id])) {

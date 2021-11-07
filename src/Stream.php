@@ -6,6 +6,11 @@ namespace davekok\stream;
 
 abstract class Stream extends StreamContext
 {
+    public function __construct(public readonly Url $url, mixed $handle)
+    {
+        parent::__construct($handle);
+    }
+
     public function __destruct()
     {
         fclose($this->handle);
