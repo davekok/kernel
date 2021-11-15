@@ -88,9 +88,9 @@ class StreamKernelReaderBuffer implements ReaderBuffer
     /**
      * Move offset to next byte in buffer.
      */
-    public function next(): self
+    public function next(int $by = 1): self
     {
-        ++$this->offset;
+        $this->offset += $by;
         return $this;
     }
 
@@ -105,6 +105,14 @@ class StreamKernelReaderBuffer implements ReaderBuffer
             throw new ReaderException("Cannot move back past mark.");
         }
         return $this;
+    }
+
+    /**
+     * Equals buffer from mark to offset with value
+     */
+    public function equals(string $value, bool $case_insensitive = false): bool
+    {
+        return substr_compare($this->buffer, $value, $this->mark, $this->offset - $this->mark, $case_insensitive) === 0;
     }
 
     /**

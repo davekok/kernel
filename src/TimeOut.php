@@ -9,7 +9,7 @@ interface TimeOut
     /**
      * Return number of seconds from now to next timeout.
      */
-    public function getNextTimeOut(): int;
+    public function getNextTimeOut(): int|null;
 
     /**
      * Called when timeout is reached.

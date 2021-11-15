@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace davekok\stream;
 
-class FileStream extends Stream
+trait IOStreamTrait
 {
     public function endOfStream(): bool
     {

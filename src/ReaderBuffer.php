@@ -44,6 +44,11 @@ interface ReaderBuffer
     public function back(int $by = 1): self;
 
     /**
+     * Equals buffer from mark to offset with value
+     */
+    public function equals(string $value): bool;
+
+    /**
      * Get all bytes from mark to current offset as string
      */
     public function getString(): string;

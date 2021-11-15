@@ -15,9 +15,6 @@
             "davekok\\stream\\tests\\": "tests/"
         }
     },
-    "require": {
-        "psr/log": "^3.0"
-    },
     "require-dev": {
         "phpunit/phpunit": "^9.5",
         "mikey179/vfsstream": "^1.6"

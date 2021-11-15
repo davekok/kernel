@@ -5,14 +5,28 @@ declare(strict_types=1);
 namespace davekok\stream;
 
 use davekok\stream\context\Options;
-use davekok\stream\context\SocketOptions;
-use davekok\stream\context\CryptoOptions;
 
-class StreamContext
+trait StreamTrait
 {
     public function __construct(
-        public readonly mixed $handle = null
+        public readonly Url $url,
+        public readonly mixed $handle,
     ) {}
+
+    public function __destruct()
+    {
+        fclose($this->handle);
+    }
+
+    public function getId(): int
+    {
+        return get_resource_id($this->handle);
+    }
+
+    public function getUrl(): Url
+    {
+        return $this->url;
+    }
 
     public function setOptions(Options $options): void
     {

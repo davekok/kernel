@@ -4,27 +4,12 @@ declare(strict_types=1);
 
 namespace davekok\stream;
 
-abstract class Stream extends StreamContext
+use davekok\stream\context\Options;
+
+interface Stream
 {
-    public function __construct(public readonly Url $url, mixed $handle)
-    {
-        parent::__construct($handle);
-    }
-
-    public function __destruct()
-    {
-        fclose($this->handle);
-    }
-
-    public function getId(): int
-    {
-        return get_resource_id($this->handle);
-    }
-
-    public function setBlocking(bool $blocking): void
-    {
-        if (stream_set_blocking($this->handle, $blocking) === false) {
-            throw new StreamError("Setting blocking mode to ".($blocking?"on":"off")." failed for stream {$this->getId()}.");
-        }
-    }
+    public function getId(): int;
+    public function getUrl(): Url;
+    public function getOptions(): Options;
+    public function setOptions(Options $options): void;
 }

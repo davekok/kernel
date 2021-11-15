@@ -4,26 +4,21 @@ declare(strict_types=1);
 
 namespace davekok\stream;
 
+use Stringable;
+
 /**
  * Implements the activity interface
  */
 class StreamKernelActivity implements Activity
 {
-    /**
-     * Saves reference to controller. However, it is not actually used. Only to prevent garbage collection.
-     */
-    private object|null $controller = null;
-
-    /**
-     * The current action.
-     */
-    private mixed $current = null;
-
     public function __construct(
         private StreamInfo $streamInfo,
+        private LogLevel $logFilterLevel,
         private StreamKernelReaderBuffer $readerBuffer = new StreamKernelReaderBuffer(),
         private StreamKernelWriterBuffer $writerBuffer = new StreamKernelWriterBuffer(),
         private array $actions = [],
+        private mixed $current = null,
+        private object|null $controller = null,
     ) {}
 
     public function getStreamInfo(): StreamInfo
@@ -31,57 +26,9 @@ class StreamKernelActivity implements Activity
         return $this->streamInfo;
     }
 
-    public function read(Reader $reader): self
-    {
-        $this->actions = [$reader];
-        return $this;
-    }
-
-    public function write(Writer $writer): self
-    {
-        $this->actions = [$writer];
-        return $this;
-    }
-
-    public function close(): self
-    {
-        $this->actions = [null];
-        return $this;
-    }
-
-    public function enableCrypto(bool $enable, int|null $cryptoType = null): self
-    {
-        $this->actions = [new StreamKernelCryptoAction($enable, $cryptoType)];
-        return $this;
-    }
-
-    public function andThen(callable $arbitraryAction): self
+    public function add(callable $arbitraryAction): self
     {
         $this->actions[] = $arbitraryAction;
-        return $this;
-    }
-
-    public function andThenRead(Reader $reader): self
-    {
-        $this->actions[] = $reader;
-        return $this;
-    }
-
-    public function andThenWrite(Writer $writer): self
-    {
-        $this->actions[] = $writer;
-        return $this;
-    }
-
-    public function andThenClose(): self
-    {
-        $this->actions[] = null;
-        return $this;
-    }
-
-    public function andThenEnableCrypto(bool $enable, int|null $cryptoType = null): self
-    {
-        $this->actions[] = new StreamKernelCryptoAction($enable, $cryptoType);
         return $this;
     }
 
@@ -92,6 +39,96 @@ class StreamKernelActivity implements Activity
             throw new StreamError("Current action is a not an arbitrary action. Fix your activity.");
         }
         $next(...$args);
+        return $this;
+    }
+
+    public function addRead(Reader $reader): self
+    {
+        $this->actions[] = $reader;
+        return $this;
+    }
+
+    public function addWrite(Writer $writer): self
+    {
+        $this->actions[] = $writer;
+        return $this;
+    }
+
+    public function addClose(): self
+    {
+        $this->actions[] = null;
+        return $this;
+    }
+
+    public function addEnableCrypto(bool $enable, int|null $cryptoType = null): self
+    {
+        $this->actions[] = new StreamKernelCryptoAction($enable, $cryptoType);
+        return $this;
+    }
+
+    public function addEmergency(string|Stringable $message): self
+    {
+        return $this->addLog(LogLevel::EMERGENCY, $message);
+    }
+
+    public function addAlert(string|Stringable $message): self
+    {
+        return $this->addLog(LogLevel::ALERT, $message);
+    }
+
+    public function addCritical(string|Stringable $message): self
+    {
+        return $this->addLog(LogLevel::CRITICAL, $message);
+    }
+
+    public function addError(string|Stringable $message): self
+    {
+        return $this->addLog(LogLevel::ERROR, $message);
+    }
+
+    public function addWarning(string|Stringable $message): self
+    {
+        return $this->addLog(LogLevel::WARNING, $message);
+    }
+
+    public function addNotice(string|Stringable $message): self
+    {
+        return $this->addLog(LogLevel::NOTICE, $message);
+    }
+
+    public function addInfo(string|Stringable $message): self
+    {
+        return $this->addLog(LogLevel::INFO, $message);
+    }
+
+    public function addDebug(string|Stringable $message): self
+    {
+        return $this->addLog(LogLevel::DEBUG, $message);
+    }
+
+    public function addLog(LogLevel $level, string|Stringable $message): self
+    {
+        if ($this->logFilterLevel->filter($level)) {
+            $this->actions[] = new StreamKernelLogAction($level, $message);
+        }
+        return $this;
+    }
+
+    public function setLogFilterLevel(LogLevel $logFilterLevel): self
+    {
+        $this->logFilterLevel = $logFilterLevel;
+        return $this;
+    }
+
+    public function getLogFilterLevel(): LogLevel
+    {
+        return $this->logFilterLevel;
+    }
+
+    public function clear(): self
+    {
+        $this->current = null;
+        $this->actions = [];
         return $this;
     }
 
@@ -113,18 +150,11 @@ class StreamKernelActivity implements Activity
         return $this->current;
     }
 
-    public function clear(): void
+    /**
+     * Saves a reference to controller. However, it is not actually used. Only to prevent garbage collection.
+     */
+    public function setController(object|null $controller): void
     {
-        $this->controller = null;
-        $this->current    = null;
-        $this->actions    = [];
-    }
-
-    public function setController(object $controller): void
-    {
-        if ($this->controller !== null) {
-            throw new StreamError("Controller is already set.");
-        }
         $this->controller = $controller;
     }
 

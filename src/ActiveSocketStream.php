@@ -4,8 +4,12 @@ declare(strict_types=1);
 
 namespace davekok\stream;
 
-class ActiveSocketStream extends FileStream
+class ActiveSocketStream implements Stream, BlockableStream, IOStream
 {
+    use StreamTrait;
+    use BlockableStreamTrait;
+    use IOStreamTrait;
+
     public function enableCrypto(bool $enable, int|null $cryptoType = null): void
     {
         match (match(true) {
