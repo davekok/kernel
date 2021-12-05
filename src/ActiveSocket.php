@@ -12,9 +12,11 @@ class ActiveSocket implements Actionable, Cryptoble, Readable, Writable
     use WritableTrait;
 
     public function __construct(
-        public readonly Activity $activity,
-        public readonly Url      $url,
-        public readonly mixed    $handle,
+        public  readonly Activity    $activity,
+        public  readonly Url         $url,
+        public  readonly mixed       $handle,
+        private readonly ReadBuffer  $readBuffer  = new ReadBuffer,
+        private readonly WriteBuffer $writeBuffer = new WriteBuffer,
     ) {
         stream_set_blocking($this->handle, false);
         stream_set_chunk_size($this->handle, Kernel::CHUNK_SIZE);

@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace davekok\kernel;
 
-class ReaderBuffer
+class ReadBuffer
 {
     public function __construct(
         private string $buffer    = "",

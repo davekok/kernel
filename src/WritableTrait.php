@@ -6,8 +6,6 @@ namespace davekok\kernel;
 
 trait WritableTrait
 {
-    private readonly WriteBuffer $writeBuffer = new WriteBuffer;
-
     public function writeBuffer(): WriteBuffer
     {
         return $this->writeBuffer;

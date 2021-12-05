@@ -1,21 +1,29 @@
-davekok/stream
+davekok/kernel
 ================================================================================
 
-A stream abstraction library.
+A PHP application kernel.
 
-This is a proof of concept library. Not ready for production use. Currently it uses the stream_select function which does not scale very well.
+This is a proof of concept component. Not ready for production use. Currently it uses the stream_select function which does not scale very well.
 
 If all the interfaces check out. A switch will be made to a more useful async IO backend.
 
 Design
 --------------------------------------------------------------------------------
 
-The design is based on a layered looped cooperative threading model. Threads are thus build up from small loops. The small loops are entangled together and are also looped. These larger loops may be entangled together again forming even larger loops. Small loops are expressed in while-loop for instance. While the larger loops use an array with callbacks using a push/shift approach.
+Implementing asynchronous input/output without a kernel that schedules and controls the application is rather hard. In this application kernel component an effort is made to make it as easy as possible. However, a asynchronous call-stack is avoided. Instead actions must be planned. And the call-stack gets used more like a log in which is temporarily remembered what has been done. But holds no information about what should be done next or where to continue next. Hopefully keeping log and plan seperated will make it easier to understand. But more importantly does not lock processes to a CPU. Making it difficult to transfer state. Serializing and deserializing a call-stack can only be done, reliably, by giving every function a unique ID and refering to them by this ID in the call-stack independent of memory location and also giving every return point (after a function call) a unique ID. Simply using the offset of the function from the beginning of the program would not work reliably as this may change with the next version. Certain optimizations may also be more difficult like inlining functions.
 
-### Looped versus linear threading model
+Possible problems with fibers are:
+- What to do when an application needs upgrading and fibers are still active? Wait, abort, avoid long running fibers?
+- What to do for high availability scenario's, where a crash should not cause disruption or loss of state?
+- How to monitor fibers? What if one gets stuck? How to detect and resolve? Kill the entire process? Requiring some protocol to manage fibers?
 
-In the linear threading model each thread gets its own call-stack. While in the looped threading model all threads share the same call-stack. In the linear model state may be preserved on the call-stack. In the looped model all state must be encapsulated in an object. The linear model has a request/response feel, while the looped model as a more message or event feel.
+Hopefully, using activities will make it easier to replicate state among multiple processes. If one crashes another takes over. By monitoring the replication should make it easier to debug and detect stuck activities and remove them. New versions can be started without killing the old ones first. And existing activities should be transferable from process to process.
 
-The linear model seems to break the open/close principle. As the thread itself is not closed to modification. This is mostly noticeble when strictly defining exceptions in a function signature. A function may need to change its signature if lower functions start throwing exceptions of a different type. Or if exceptions are strictly handled it could break single responsibility as functions must now deal with foreign exceptions of lower functions to prevent signature change. The looped model does not seem to have this problem.
+Lets hope it pans out that way.
 
-The looped model can be implemented without special support of a language. Except that back traces of exceptions are rather meaningless. However, it seems to require thinking more in terms of space and time rather than just space as with the linear model. So it is some what more complex. But in my opion less complex then scaling up the linear model.
+Activities
+--------------------------------------------------------------------------------
+
+What should be done next is stored in an activity. Each activity holds zero or more actions, an activity with zero actions is considered inactive. Activities may be looped. Activities may fork and spawn new ones.
+
+An action acts on an actionable. Basically anything can be an actionable, like a sockets, files or other activities. Actionables define which actions they support through interfaces. Actions provide an execute function to perform these actions. Actions requiring synchronisation or interaction will cause the kernel to hold that activity until a corresponding event has been received.

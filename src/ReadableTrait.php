@@ -6,8 +6,6 @@ namespace davekok\kernel;
 
 trait ReadableTrait
 {
-    private readonly ReadBuffer $readBuffer = new ReadBuffer;
-
     public function readBuffer(): ReadBuffer
     {
         return $this->readBuffer;
