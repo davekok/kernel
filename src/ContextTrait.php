@@ -2,32 +2,12 @@
 
 declare(strict_types=1);
 
-namespace davekok\stream;
+namespace davekok\kernel;
 
-use davekok\stream\context\Options;
+use davekok\kernel\context\Options;
 
-trait StreamTrait
+trait ContextTrait
 {
-    public function __construct(
-        public readonly Url $url,
-        public readonly mixed $handle,
-    ) {}
-
-    public function __destruct()
-    {
-        fclose($this->handle);
-    }
-
-    public function getId(): int
-    {
-        return get_resource_id($this->handle);
-    }
-
-    public function getUrl(): Url
-    {
-        return $this->url;
-    }
-
     public function setOptions(Options $options): void
     {
         foreach ($options->toArray() as $wrapper => $wrapperOptions) {

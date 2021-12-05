@@ -2,141 +2,171 @@
 
 declare(strict_types=1);
 
-namespace davekok\stream;
+namespace davekok\kernel;
 
-use Stringable;
+use Psr\Logger\LoggerInterface;
 
-/**
- * This interface represents an activity. Each activity has its own standard input, output and
- * log stream.
- *
- * Activities are setup with a layered looped cooperative threading model in mind. Threads are thus
- * build up from small loops. The small loops are entangled together through this interface and are
- * also looped. So if we have the small loops A, B, C and D. A can get entangled to B, B to C, C to
- * D and D back to A. Even higher level loops can be build over the network.
- *
- * Looped versus linear threading model.
- *
- * In the linear threading model each thread gets its own call-stack. While in the looped threading
- * model all threads share the same call-stack. In the linear model state may be preserved on the
- * call-stack. In the looped model all state must be encapsulated in an object. The linear model
- * has a request/response feel, while the looped model as a more message or event feel.
- *
- * The linear model seems to break the open/close principle. As the thread itself is not closed to
- * modification. This is mostly noticeble when strictly defining exceptions in function signatures.
- * A function may need to change its signature if lower functions start throwing exceptions of a
- * different type. Or if exceptions are strictly handled it could break single responsibility as
- * functions must now deal with foreign exceptions of lower functions to prevent signature change.
- * The looped model does not seem to have this problem.
- *
- * The looped model can be implemented without special support of a language. Except that back
- * traces of exceptions are rather meaningless. However, it seems to require thinking more in terms
- * of space and time rather than just space as with the linear model.
- */
-interface Activity
+class Activity implements Actionable
 {
-    /**
-     * Get info about the underlying stream.
-     */
-    public function getStreamInfo(): StreamInfo;
+    private Action|null $loop    = null;
+    private Action|null $current = null;
+    private array       $actions = [];
 
-    /**
-     * Adds an abritrary action to the activity. Please note that the user must handle these actions or
-     * else the activity breaks and an exception (StreamError) is thrown.
-     *
-     * Use push to push something into the activity which will trigger an arbitrary action.
-     */
-    public function add(callable $next): self;
+    public function __construct(
+        public readonly int $id,
+        public readonly Kernel $kernel,
+        public readonly LoggerInterface $logger,
+    ) {}
 
-    /**
-     * Push something into the activity triggering a previously added arbritray action. Please
-     * note that the next action must be an arbritrary action. Otherwise an exception is thrown.
-     */
-    public function push(mixed ...$args): self;
+    public function activity(): Activity
+    {
+        return $this;
+    }
 
-    /**
-     * Adds a read action to the activity.
-     */
-    public function addRead(Reader $reader): self;
+    public function logger(): LoggerInterface
+    {
+        return $this->logger;
+    }
 
-    /**
-     * Adds a write action to the activity.
-     */
-    public function addWrite(Writer $writer): self;
+    public function url(): Url
+    {
+        return new Url("kernel:/activity/{$this->id}");
+    }
 
-    /**
-     * Adds a enable crypto action to the activity.
-     */
-    public function addEnableCrypto(bool $enable, int|null $cryptoType = null): self;
+    public function fork(): Activity
+    {
+        $id      = $this->id + 1;
+        $actions = new Activity($id, $this->kernel, $this->logger);
+        $this->kernel->start($id, $actions);
+        return $actions;
+    }
 
-    /**
-     * Adds a close action to the activity.
-     */
-    public function addClose(): self;
+    public function suspend(): self
+    {
+        $this->kernel->suspend($this->id);
 
-    /**
-     * Add a emergency log action to the activity.
-     */
-    public function addEmergency(string|Stringable $message): self;
+        return $this;
+    }
 
-    /**
-     * Add a alert log action to the activity.
-     */
-    public function addAlert(string|Stringable $message): self;
+    public function resume(): self
+    {
+        $this->kernel->resume($this->id);
 
-    /**
-     * Add a critical log action to the activity.
-     */
-    public function addCritical(string|Stringable $message): self;
+        return $this;
+    }
 
-    /**
-     * Add a error log action to the activity.
-     */
-    public function addError(string|Stringable $message): self;
+    public function stop(): void
+    {
+        $this->kernel->stop($this->id);
+    }
 
-    /**
-     * Add a warning log action to the activity.
-     */
-    public function addWarning(string|Stringable $message): self;
+    public function loop(): self
+    {
+        $this->loop = $this->current;
 
-    /**
-     * Add a notice log action to the activity.
-     */
-    public function addNotice(string|Stringable $message): self;
+        return $this;
+    }
 
-    /**
-     * Add a info log action to the activity.
-     */
-    public function addInfo(string|Stringable $message): self;
+    public function valid(): bool
+    {
+        return $this->current !== null;
+    }
 
-    /**
-     * Add a debug log action to the activity.
-     */
-    public function addDebug(string|Stringable $message): self;
+    public function current(): Action
+    {
+        return $this->current;
+    }
 
-    /**
-     * Add a log action to the activity.
-     */
-    public function addLog(LogLevel $level, string|Stringable $message): self;
+    public function next(): self
+    {
+        if (count($this->actions) === 0) {
+            $this->current = $this->loop;
+            return;
+        }
 
-    /**
-     * Set the filter level for log messages.
-     */
-    public function setLogFilterLevel(LogLevel $level): self;
+        $this->current = array_shift($this->actions);
 
-    /**
-     * Get the filter level for log messages.
-     */
-    public function getLogFilterLevel(): LogLevel;
+        return $this;
+    }
 
-    /**
-     * Clears the actions currently planned.
-     */
-    public function clear(): self;
+    public function push(Action $action): self
+    {
+        if ($this->current === null) {
+            $this->current = $action;
+            return;
+        }
 
-    /**
-     * Repeat the current action. Useful when a reader or writer is not ready yet and needs
-     * another pass.
-     */
-    public function repeat(): self;
+        $this->actions[] = $action;
+
+        return $this;
+    }
+
+    public function clear(): self
+    {
+        $this->loop    = null;
+        $this->current = null;
+        $this->actions = [];
+
+        return $this;
+    }
+
+    public function open(Url $url, OpenMode $openMode): LocalFile
+    {
+        $url->isLocalFileUrl() ?: throw new KernelException("Not a valid local file url: $url");
+        return new (match ($openMode) {
+            OpenMode::READ_ONLY => ReadableLocalFile::class
+            OpenMode::READ_WRITE,
+            OpenMode::STRICT_READ_WRITE,
+            OpenMode::TRUNCATE_READ_WRITE,
+            OpenMode::CREATE_READ_WRITE,
+            OpenMode::READ_APPEND => ReadableWritableLocalFile::class,
+            OpenMode::WRITE_ONLY,
+            OpenMode::APPEND_ONLY,
+            OpenMode::TRUNCATE_WRITE_ONLY,
+            OpenMode::CREATE_WRITE_ONLY => WritableLocalFile::class,
+            default => throw new KernelException("Invalid open mode."),
+        })(
+            $this,
+            $url,
+            fopen($url->path, $openMode->value) ?: throw new KernelException("Unable to open file: {$url->path}")
+        );
+    }
+
+    public function connect(
+        Url $url,
+        float|null $timeout,
+        int $flags = STREAM_CLIENT_CONNECT,
+        Options|array|null $options = null,
+    ): ActiveSocket
+    {
+        $url->isSocketUrl() ?: throw new KernelException("Not a valid socket url: $url")
+        return new ActiveSocket(
+            $this,
+            $url,
+            stream_socket_client(
+                remote_socket: (string)$url,
+                errno:         $errno,
+                errstr:        $errstr,
+                timeout:       $timeout ?? ini_get("default_socket_timeout"),
+                flags:         $flags,
+                context:       Options::createContext($options)
+            ) ?: throw new KernelException($errstr, $errno),
+        );
+    }
+
+    public function listen(
+        Acceptor $acceptor,
+        Url $url,
+        int $flags = STREAM_SERVER_BIND | STREAM_SERVER_LISTEN,
+        Options|array|null $options = null
+    ): PassiveSocket
+    {
+        $url->isSocketUrl() ?: throw new KernelException("Not a valid socket url: $url");
+        return (new PassiveSocket(
+            $this->fork(),
+            $url,
+            stream_socket_server((string)$url, $errno, $errstr, $flags, Options::createContext($options))
+                ?: throw new KernelException($errstr, $errno),
+        ))->listen($acceptor);
+    }
 }

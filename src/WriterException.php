@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace davekok\stream;
+namespace davekok\kernel;
 
 use Exception;
 

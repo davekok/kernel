@@ -2,9 +2,9 @@
 
 declare(strict_types=1);
 
-namespace davekok\stream;
+namespace davekok\kernel;
 
 interface Reader
 {
-    public function read(ReaderBuffer $reader): void;
+    public function read(ReadBuffer $buffer): mixed;
 }

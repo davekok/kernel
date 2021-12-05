@@ -2,9 +2,9 @@
 
 declare(strict_types=1);
 
-namespace davekok\stream;
+namespace davekok\kernel;
 
 interface Writer
 {
-    public function write(WriterBuffer $buffer): void;
+    public function write(WriteBuffer $buffer): bool;
 }

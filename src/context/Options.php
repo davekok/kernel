@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace davekok\stream\context;
+namespace davekok\kernel\context;
 
 use ReflectionClass;
 
@@ -13,6 +13,15 @@ class Options
         public CryptoOptions|null $crypto = null
     )
     {}
+
+    public static function createContext(Options|array|null $context): mixed
+    {
+        return match (true) {
+            $context instanceof Options => stream_context_create($context->toArray()),
+            is_array($context) => stream_context_create($context),
+            is_null($context) => stream_context_get_default(),
+        };
+    }
 
     public static function createFromArray(array $options): self
     {

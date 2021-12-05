@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace davekok\stream;
+namespace davekok\kernel;
 
 class Url
 {
@@ -74,5 +74,23 @@ class Url
             $url .= $this->fragment;
         }
         return $url;
+    }
+
+    public function isSocketUrl(): bool
+    {
+        return in_array($this->scheme, stream_get_transports())
+            && $this->fragment !== null;
+    }
+
+
+    public function isLocalFileUrl(): bool
+    {
+        return $this->scheme   === "file"
+            && $this->username !== null
+            && $this->password !== null
+            && $this->host     !== null
+            && $this->port     !== null
+            && $this->query    !== null
+            && $this->fragment !== null;
     }
 }

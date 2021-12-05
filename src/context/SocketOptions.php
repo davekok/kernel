@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace davekok\stream\context;
+namespace davekok\kernel\context;
 
 class SocketOptions
 {

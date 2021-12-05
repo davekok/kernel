@@ -2,9 +2,9 @@
 
 declare(strict_types=1);
 
-namespace davekok\stream;
+namespace davekok\kernel;
 
-class StreamKernelReaderBuffer implements ReaderBuffer
+class ReaderBuffer
 {
     public function __construct(
         private string $buffer    = "",
@@ -90,7 +90,22 @@ class StreamKernelReaderBuffer implements ReaderBuffer
      */
     public function next(int $by = 1): self
     {
+        if ($by < 0 && ($this->offset + $by) < $this->mark) {
+            throw new ReaderException("Cannot move back past mark.");
+        }
         $this->offset += $by;
+        return $this;
+    }
+
+    /**
+     * Set offset X bytes from mark.
+     */
+    public function set(int $by = 1): self
+    {
+        if ($by < 0) {
+            throw new ReaderException("Cannot move back past mark.");
+        }
+        $this->offset = $this->mark + $by;
         return $this;
     }
 
@@ -139,8 +154,11 @@ class StreamKernelReaderBuffer implements ReaderBuffer
         return (float)$this->getString();
     }
 
+    /**
+     * For logging purposes, to quickly dump some of the read buffer.
+     */
     public function __toString(): string
     {
-        return addcslashes(substr($this->buffer, $this->offset, 10), "\r\n\t\0");
+        return addcslashes(substr($this->buffer, $this->offset, 20), "\r\n\t\0");
     }
 }
