@@ -11,12 +11,12 @@ class Read implements ReadableAction
     public function __construct(
         private readonly Actionable $actionable,
         private readonly Reader     $reader,
-        private readonly callable   $setter,
+        private readonly mixed      $setter,
         private readonly mixed      $selector,
     ) {
-        if ($this->actionable instanceof Readable === false) {
-            throw new KernelException("Not a readable actionable.");
-        }
+        $this->actionable instanceof Readable ?: throw new KernelException("Not a readable actionable.");
+        is_callable($this->setter) ?: throw new KernelException("Expected setter property to be callable.");
+        is_resource($this->selector) ?: throw new KernelException("Expected selector property to be a resource.");
     }
 
     public function readableSelector(): mixed

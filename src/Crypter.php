@@ -10,7 +10,6 @@ class Crypter implements Action
         private readonly Actionable $actionable,
         private readonly bool $cryptoEnable,
         private readonly int $cryptoType,
-        private readonly callable $setCryptoEnabled,
     ) {}
 
     public function execute(): void
@@ -19,8 +18,7 @@ class Crypter implements Action
             $this->realEnableCrypto($this->cryptoEnable, $this->cryptoType);
             $this->actionable->activity()->next();
         } catch (Throwable $throwable) {
-            $this->actionable->activity()->next();
-            $this->actionable->activity()->logger()->error($throwable);
+            $this->actionable->activity()->throw($throwable);
         }
     }
 }

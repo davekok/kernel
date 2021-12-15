@@ -4,8 +4,50 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
         "This file is @generated automatically"
     ],
-    "content-hash": "a12424d45034aac8df281698f00194d8",
+    "content-hash": "f23c5a155733e5380c951092d90ac45c",
     "packages": [
+        {
+            "name": "davekok/container",
+            "version": "dev-main",
+            "source": {
+                "type": "git",
+                "url": "https://github.com/davekok/container.git",
+                "reference": "ebbbdfa11d52c22143d37fa532b2ecad4172f396"
+            },
+            "dist": {
+                "type": "zip",
+                "url": "https://api.github.com/repos/davekok/container/zipball/ebbbdfa11d52c22143d37fa532b2ecad4172f396",
+                "reference": "ebbbdfa11d52c22143d37fa532b2ecad4172f396",
+                "shasum": ""
+            },
+            "require-dev": {
+                "phpunit/php-code-coverage": "^9.2.x-dev",
+                "phpunit/phpunit": "^9.5"
+            },
+            "default-branch": true,
+            "type": "project",
+            "autoload": {
+                "psr-4": {
+                    "davekok\\container\\": "src/",
+                    "davekok\\container\\tests\\": "tests/"
+                }
+            },
+            "license": [
+                "UNLICENSE"
+            ],
+            "authors": [
+                {
+                    "name": "Dave Kok",
+                    "email": "email@davekok.nl"
+                }
+            ],
+            "description": "Container abstraction",
+            "support": {
+                "source": "https://github.com/davekok/container/tree/main",
+                "issues": "https://github.com/davekok/container/issues"
+            },
+            "time": "2021-12-15T12:42:06+00:00"
+        },
         {
             "name": "psr/log",
             "version": "3.0.0",
@@ -2205,7 +2247,9 @@
     ],
     "aliases": [],
     "minimum-stability": "stable",
-    "stability-flags": [],
+    "stability-flags": {
+        "davekok/container": 20
+    },
     "prefer-stable": false,
     "prefer-lowest": false,
     "platform": [],

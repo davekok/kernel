@@ -12,7 +12,7 @@ class Activity extends Url implements Actionable
     private array         $actions = [];
     private Action|null   $loop    = null;
     private Action|null   $current = null;
-    private callable|null $catcher = null;
+    private mixed         $catcher = null;
 
     public function __construct(
         private readonly Kernel $kernel,
@@ -77,7 +77,7 @@ class Activity extends Url implements Actionable
     {
         if (count($this->actions) === 0) {
             $this->current = $this->loop;
-            return;
+            return $this;
         }
 
         $this->current = array_shift($this->actions);
@@ -90,7 +90,7 @@ class Activity extends Url implements Actionable
         if ($this->current === null) {
             $this->current = $action;
             $this->kernel->resume($this);
-            return;
+            return $this;
         }
 
         $this->actions[] = $action;

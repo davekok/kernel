@@ -19,7 +19,7 @@ class SocketUrlFactory implements UrlFactory
 
         return new SocketUrl(
             scheme:   $parts["scheme"],
-            username  $parts["user"],
+            username: $parts["user"],
             password: $parts["pass"],
             host:     $parts["host"],
             port:     $parts["port"],

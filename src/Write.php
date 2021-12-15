@@ -14,6 +14,7 @@ class Write implements WritableAction
         private readonly mixed $selector,
     ) {
         $this->actionable instanceof Writable ?: throw new KernelException("Actionable does not implement Writable interface.");
+        is_resource($this->selector) ?: throw new KernelException("Expected selector property to be a resource.");
     }
 
     public function writableSelector(): mixed

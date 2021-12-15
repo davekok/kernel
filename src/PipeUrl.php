@@ -17,7 +17,7 @@ class PipeUrl extends Url
             "stderr" => new WritablePipe($this, $activity, $this->openPipe(OpenMode::APPEND_ONLY)),
             "memory" => new ReadableWritablePipe($this, $activity, $this->openPipe(OpenMode::STRICT_READ_WRITE)),
             "temp"   => new ReadableWritablePipe($this, $activity, $this->openPipe(OpenMode::STRICT_READ_WRITE)),
-            default  => throw new NotFoundException("Url not found: $this");
+            default  => throw new NotFoundException("Url not found: $this"),
         };
     }
 
