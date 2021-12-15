@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace davekok\kernel;
 
-trait LocalFileTrait
+trait FileTrait
 {
     /**
      * Move offset relative to current offset.

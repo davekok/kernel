@@ -21,27 +21,10 @@ class Logger implements LoggerInterface
         LogLevel::DEBUG     => 7,
     ];
 
-    private Actionable $actionable;
-
     public function __construct(
-        private readonly string $filterLevel = LogLevel::INFO,
-    ) {
-        // TODO: optimize with filter level
-
-        // report all errors that can't be handled through set_error_handler
-        error_reporting(E_ERROR|E_PARSE|E_CORE_ERROR|E_CORE_WARNING|E_COMPILE_ERROR|E_COMPILE_WARNING|E_STRICT);
-        // set an error handler for all errors that can be handled
-        set_error_handler($this->errorHandler(...),
-                E_WARNING|E_NOTICE|E_USER_ERROR|E_USER_WARNING|E_USER_NOTICE|E_RECOVERABLE_ERROR|E_DEPRECATED);
-    }
-
-    public function setActionable(Actionable $actionable): void
-    {
-        if ($actionable instanceof Writable === false) {
-            throw new KernelException("Writable actionable expected.");
-        }
-        $this->actionable = $actionable;
-    }
+        private readonly Actionable $actionable,
+        private readonly string $filterLevel,
+    ) {}
 
     public function log($level, string|Stringable $message, array $context = []): void
     {

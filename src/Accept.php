@@ -6,15 +6,19 @@ namespace davekok\kernel;
 
 use Throwable;
 
-class Accept implements Action
+class Accept implements ReadableAction
 {
     public function __construct(
         private readonly Actionable $actionable,
         private readonly Acceptor $acceptor,
+        private readonly mixed $selector,
     ) {
-        if ($this->actionable instanceof Passive === false) {
-            throw new KernelException("Not a passive actionable.");
-        }
+        $this->actionable instanceof Passive ?: throw new KernelException("Actionable does not implement the Passive interface.");
+    }
+
+    public function readableSelector(): mixed
+    {
+        return $this->selector;
     }
 
     public function execute(): void
@@ -22,7 +26,7 @@ class Accept implements Action
         try {
             $this->acceptor->accept($this->actionable->accept());
         } catch (Throwable $throwable) {
-            $this->actionable->activity()->logger->error($throwable);
+            $this->actionable->activity()->throw($throwable);
         }
     }
 }

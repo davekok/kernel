@@ -1,41 +1,21 @@
 <?php
 
-declare(strict_types=1,ticks=1);
+declare(strict_types=1);
 
 namespace davekok\kernel;
 
-use Psr\Log\LoggerInterface;
+use davekok\container\Runnable;
 
-class Kernel implements Actionable
+class Kernel implements Runnable
 {
     public const CHUNK_SIZE = 1400;
 
-    private bool         $running  = false;
-    private TimeOut|null $timeOut  = null;
-    private array        $active   = [];
-    private array        $inactive = [];
-    private Activity     $mainActivity;
+    private bool         $running    = false;
+    private TimeOut|null $timeOut    = null;
+    private array        $activities = [];
+    private array        $active     = [];
 
-    public function __construct(mixed $loggerHandle = STDERR): void
-    {
-        pcntl_signal(SIGINT , $this->quit(...));
-        pcntl_signal(SIGQUIT, $this->quit(...));
-        pcntl_signal(SIGTERM, $this->quit(...));
-
-        $this->mainActivity = new Activity(0, $this, new Logger());
-        $this->mainActivity->logger->setActionable(new WritablePipe($this->mainActivity, new Url("logger:"), $loggerHandle));
-        $this->start($this->mainActivity);
-    }
-
-    public function activity(): Activity
-    {
-        return $this->mainActivity;
-    }
-
-    public function url(): Url
-    {
-        return new Url("Kernel:");
-    }
+    public function __construct(private readonly UrlFactory $urlFactory) {}
 
     public function run(): never
     {
@@ -46,46 +26,46 @@ class Kernel implements Actionable
         $this->running = true;
 
         while ($this->running) {
-            $selectRead   = [];
-            $selectWrite  = [];
-            $selectExcept = [];
-            $actions      = [];
-            $timeout      = $this->timeOut();
+            $readableSelectors   = [];
+            $writableSelectors   = [];
+            $exceptableSelectors = [];
+            $actions             = [];
+            $timeout             = $this->timeOut();
 
-            // if no more active then exit
+            // if no more active activities then exit
             if (count($this->active) === 0) {
                 exit(1);
             }
 
-            // loop through all active
+            // loop through all active activities
             // get current action and either execute or add to select
-            foreach ($this->active as $id => $activity) {
+            foreach ($this->active as $activity) {
                 if ($activity->valid() === false) {
-                    $this->stop($id);
+                    $this->suspend($activity);
                     continue;
                 }
                 $action = $activity->current();
-                if ($action instanceof Read || $action instanceof Accept) {
-                    $handle = $action->actionable()->handle;
-                    $actions[get_resource_id($handle)] = $action;
-                    $selectRead[] = $handle;
+                if ($action instanceof ReadableAction) {
+                    $selector = $action->readableSelector();
+                    $actions[get_resource_id($selector)] = $action;
+                    $readableSelectors[] = $selector;
                     continue;
                 }
-                if ($action instanceof Write) {
-                    $handle = $action->actionable()->handle;
-                    $actions[get_resource_id($handle)] = $action;
-                    $selectWrite[] = $handle;
+                if ($action instanceof WritableAction) {
+                    $selector = $action->writableSelector();
+                    $actions[get_resource_id($selector)] = $action;
+                    $writableSelectors[] = $selector;
                     continue;
                 }
                 $action->execute();
             }
 
-            // nothing selected then do next pass
-            if (count($selectRead) === 0 && count($selectWrite) === 0) {
+            // if nothing is selected then do next pass
+            if (count($readableSelectors) === 0 && count($writableSelectors) === 0) {
                 continue;
             }
 
-            $ret = stream_select($selectRead, $selectWrite, $selectExcept, $timeout);
+            $ret = stream_select($readableSelectors, $writableSelectors, $exceptableSelectors, $timeout);
             if ($ret === false) {
                 continue;
             }
@@ -94,38 +74,45 @@ class Kernel implements Actionable
                 continue;
             }
 
-            foreach ($selectRead as $handle) {
-                $actions[get_resource_id($handle)]->execute();
+            foreach ($readableSelectors as $selector) {
+                $actions[get_resource_id($selector)]->execute();
             }
 
-            foreach ($selectWrite as $handle) {
-                $actions[get_resource_id($handle)]->execute();
+            foreach ($writableSelectors as $selector) {
+                $actions[get_resource_id($selector)]->execute();
             }
         }
         exit();
     }
 
-    public function start(Activity $activity): void
+    public function createActivity(): Activity
+    {
+        $id = (time() << 32) | random_int(0, 4294967295); // create a 64-bit unique id of time and a random int
+        $activity = new Activity($this, $this->urlFactory, $id);
+        $this->activities[$id] = $activity;
+        $this->active[$id]     = $activity;
+        return $activity;
+    }
+
+    public function getActivity(int $id): Activity
+    {
+        return $this->activities[$id] ?? throw new NotFoundException("Not found: activity:#$id");
+    }
+
+    public function suspendActivity(Activity $activity): void
+    {
+        unset($this->active[$activity->id]);
+    }
+
+    public function resumeActivity(Activity $activity): void
     {
         $this->active[$activity->id] = $activity;
     }
 
-    public function suspend(Activity $activity): void
+    public function stopActivity(Activity $activity): void
     {
-        $this->inactive[$activity->id] = $this->active[$activity->id];
+        unset($this->activities[$activity->id]);
         unset($this->active[$activity->id]);
-    }
-
-    public function resume(Activity $activity): void
-    {
-        $this->active[$activity->id] = $this->inactive[$activity->id];
-        unset($this->inactive[$activity->id]);
-    }
-
-    public function stop(Activity $activity): void
-    {
-        unset($this->active[$activity->id]);
-        unset($this->inactive[$activity->id]);
         $activity->clear();
     }
 

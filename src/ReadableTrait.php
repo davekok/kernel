@@ -13,7 +13,7 @@ trait ReadableTrait
 
     public function read(Reader $reader, callable $andThen): void
     {
-        $this->activity->push(new Read($this, $reader, $andThen));
+        $this->activity->push(new Read($this, $reader, $andThen, $this->handle));
     }
 
     public function readChunk(): string

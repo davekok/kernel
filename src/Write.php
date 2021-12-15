@@ -6,15 +6,19 @@ namespace davekok\kernel;
 
 use Throwable;
 
-class Write implements Action
+class Write implements WritableAction
 {
     public function __construct(
         private readonly Actionable $actionable,
         private readonly Writer $writer,
+        private readonly mixed $selector,
     ) {
-        if ($this->actionable instanceof Writable === false) {
-            throw new KernelException("Not a writable actionable.");
-        }
+        $this->actionable instanceof Writable ?: throw new KernelException("Actionable does not implement Writable interface.");
+    }
+
+    public function writableSelector(): mixed
+    {
+        return $this->selector;
     }
 
     public function execute(): void
@@ -25,10 +29,9 @@ class Write implements Action
             $lastChunk = $writer->write($buffer);
             $chunk     = $buffer->getChunk();
             $length    = strlen($chunk);
+
             if ($length === 0) {
-                $activity->logger->notice("Output requested but no output.");
-                $activity->next();
-                return;
+                throw new KernelException("Output requested but no output.");
             }
 
             $written = $stream->writeChunk($chunk, $length);
@@ -38,8 +41,7 @@ class Write implements Action
                 $activity->next();
             }
         } catch (Throwable $throwable) {
-            $activity->logger->error($throwable);
-            $activity->clear();
+            $activity->throw($throwable);
         }
     }
 }

@@ -42,9 +42,9 @@ class ReadBuffer
     }
 
     /**
-     * Marks end of stream.
+     * Marks this chunk as last chunk.
      */
-    public function end(): self
+    public function markLastChunk(): self
     {
         $this->isLastChunk = true;
         return $this;
@@ -106,6 +106,15 @@ class ReadBuffer
             throw new ReaderException("Cannot move back past mark.");
         }
         $this->offset = $this->mark + $by;
+        return $this;
+    }
+
+    /**
+     * Move to end
+     */
+    public function end(): self
+    {
+        $this->offset = strlen($this->buffer);
         return $this;
     }
 

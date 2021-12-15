@@ -8,4 +8,5 @@ interface Cryptoble
 {
     public function enableCrypto(bool $enable, int|null $cryptoType = null): void;
     public function isCryptoEnabled(): bool;
+    public function realEnableCrypto(bool $enable, int|null $cryptoType = null): bool;
 }

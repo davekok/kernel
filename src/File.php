@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace davekok\kernel;
 
-interface LocalFile
+interface File
 {
     /**
      * Move offset relative to current offset.

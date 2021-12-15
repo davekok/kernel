@@ -5,59 +5,55 @@ declare(strict_types=1);
 namespace davekok\kernel;
 
 use Psr\Logger\LoggerInterface;
+use Throwable;
 
-class Activity implements Actionable
+class Activity extends Url implements Actionable
 {
-    private Action|null $loop    = null;
-    private Action|null $current = null;
-    private array       $actions = [];
+    private array         $actions = [];
+    private Action|null   $loop    = null;
+    private Action|null   $current = null;
+    private callable|null $catcher = null;
 
     public function __construct(
-        public readonly int $id,
-        public readonly Kernel $kernel,
-        public readonly LoggerInterface $logger,
-    ) {}
+        private readonly Kernel $kernel,
+        private readonly UrlFactory $urlFactory,
+        int $id,
+    ) {
+        parent::__construct(scheme: "activity", fragment: $id);
+    }
 
     public function activity(): Activity
     {
         return $this;
     }
 
-    public function logger(): LoggerInterface
-    {
-        return $this->logger;
-    }
-
     public function url(): Url
     {
-        return new Url("kernel:/activity/{$this->id}");
+        return $this;
     }
 
     public function fork(): Activity
     {
-        $id      = $this->id + 1;
-        $actions = new Activity($id, $this->kernel, $this->logger);
-        $this->kernel->start($id, $actions);
-        return $actions;
+        return $this->kernel->createActivity();
     }
 
     public function suspend(): self
     {
-        $this->kernel->suspend($this->id);
+        $this->kernel->suspend($this);
 
         return $this;
     }
 
     public function resume(): self
     {
-        $this->kernel->resume($this->id);
+        $this->kernel->resume($this);
 
         return $this;
     }
 
     public function stop(): void
     {
-        $this->kernel->stop($this->id);
+        $this->kernel->stop($this);
     }
 
     public function loop(): self
@@ -93,6 +89,7 @@ class Activity implements Actionable
     {
         if ($this->current === null) {
             $this->current = $action;
+            $this->kernel->resume($this);
             return;
         }
 
@@ -105,68 +102,23 @@ class Activity implements Actionable
     {
         $this->loop    = null;
         $this->current = null;
+        $this->catcher = null;
         $this->actions = [];
 
         return $this;
     }
 
-    public function open(Url $url, OpenMode $openMode): LocalFile
+    public function catch(callable $catcher): self
     {
-        $url->isLocalFileUrl() ?: throw new KernelException("Not a valid local file url: $url");
-        return new (match ($openMode) {
-            OpenMode::READ_ONLY => ReadableLocalFile::class
-            OpenMode::READ_WRITE,
-            OpenMode::STRICT_READ_WRITE,
-            OpenMode::TRUNCATE_READ_WRITE,
-            OpenMode::CREATE_READ_WRITE,
-            OpenMode::READ_APPEND => ReadableWritableLocalFile::class,
-            OpenMode::WRITE_ONLY,
-            OpenMode::APPEND_ONLY,
-            OpenMode::TRUNCATE_WRITE_ONLY,
-            OpenMode::CREATE_WRITE_ONLY => WritableLocalFile::class,
-            default => throw new KernelException("Invalid open mode."),
-        })(
-            $this,
-            $url,
-            fopen($url->path, $openMode->value) ?: throw new KernelException("Unable to open file: {$url->path}")
-        );
+        $this->catcher = $catcher;
     }
 
-    public function connect(
-        Url $url,
-        float|null $timeout,
-        int $flags = STREAM_CLIENT_CONNECT,
-        Options|array|null $options = null,
-    ): ActiveSocket
+    public function throw(Throwable $throwable): void
     {
-        $url->isSocketUrl() ?: throw new KernelException("Not a valid socket url: $url")
-        return new ActiveSocket(
-            $this,
-            $url,
-            stream_socket_client(
-                remote_socket: (string)$url,
-                errno:         $errno,
-                errstr:        $errstr,
-                timeout:       $timeout ?? ini_get("default_socket_timeout"),
-                flags:         $flags,
-                context:       Options::createContext($options)
-            ) ?: throw new KernelException($errstr, $errno),
-        );
-    }
+        if (isset($this->catcher) === false) {
+            return;
+        }
 
-    public function listen(
-        Acceptor $acceptor,
-        Url $url,
-        int $flags = STREAM_SERVER_BIND | STREAM_SERVER_LISTEN,
-        Options|array|null $options = null
-    ): PassiveSocket
-    {
-        $url->isSocketUrl() ?: throw new KernelException("Not a valid socket url: $url");
-        return (new PassiveSocket(
-            $this->fork(),
-            $url,
-            stream_socket_server((string)$url, $errno, $errstr, $flags, Options::createContext($options))
-                ?: throw new KernelException($errstr, $errno),
-        ))->listen($acceptor);
+        $this->catcher($throwable);
     }
 }

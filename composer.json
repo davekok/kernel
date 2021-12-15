@@ -15,6 +15,15 @@
             "davekok\\kernel\\tests\\": "tests/"
         }
     },
+    "repositories": [
+        {
+            "type": "vcs",
+            "url": "https://github.com/davekok/container"
+        }
+    ],
+    "require": {
+        "davekok/container": "dev-main"
+    },
     "require-dev": {
         "phpunit/phpunit": "^9.5",
         "mikey179/vfsstream": "^1.6"

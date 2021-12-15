@@ -15,10 +15,8 @@ class PassiveSocket implements Actionable, Passive
     use PassiveTrait;
 
     public function __construct(
-        public readonly Activity $activity,
         public readonly Url      $url,
+        public readonly Activity $activity,
         public readonly mixed    $handle,
-    ) {
-        stream_set_blocking($this->handle, false);
-    }
+    ) {}
 }

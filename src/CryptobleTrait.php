@@ -10,7 +10,7 @@ trait CryptobleTrait
 
     public function enableCrypto(bool $enable, int|null $cryptoType = null): void
     {
-        $this->activity->push(new Crypter($this->activity, $this->handle, $enable, $cryptoType, $this->setCryptoEnabled(...)));
+        $this->activity->push(new Crypter($this, $enable, $cryptoType));
     }
 
     public function isCryptoEnabled(): bool
@@ -18,8 +18,26 @@ trait CryptobleTrait
         return $this->cryptoEnabled;
     }
 
-    private function setCryptoEnabled(bool $cryptoEnabled): void
+    public function realEnableCrypto(bool $enable, int|null $cryptoType = null): void
     {
-        $this->cryptoEnabled = $this->cryptoEnabled;
+        stream_set_blocking($this->handle, true);
+        $ret = match(true) {
+            $this->cryptoType !== null => stream_socket_enable_crypto($this->handle, $enable, $cryptoType),
+            default => stream_socket_enable_crypto($this->handle, $enable),
+        };
+        stream_set_blocking($this->handle, false);
+
+        if ($ret === true) {
+            $this->cryptoEnabled = $enable;
+            return;
+        }
+
+        $id = get_resource_id($this->handle);
+
+        if ($ret === false) {
+            throw new KernelException("Negotiation failed for stream '{$id}'.");
+        }
+
+        throw new KernelException("Not enough data please try again for stream '{$id}'.");
     }
 }

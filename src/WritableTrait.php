@@ -13,7 +13,7 @@ trait WritableTrait
 
     public function write(Writer $writer): void
     {
-        $this->activity->push(new Write($this, $writer));
+        $this->activity->push(new Write($this, $writer, $this->handle));
     }
 
     public function writeChunk(string $buffer, int $length): int

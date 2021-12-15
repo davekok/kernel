@@ -4,4 +4,7 @@ declare(strict_types=1);
 
 namespace davekok\kernel;
 
-class KernelException extends \RuntimeException {}
+use Psr\Container\ContainerExceptionInterface;
+use Exception;
+
+class KernelException extends Exception implements ContainerExceptionInterface {}
