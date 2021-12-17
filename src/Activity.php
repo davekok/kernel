@@ -16,7 +16,6 @@ class Activity extends Url implements Actionable
 
     public function __construct(
         private readonly Kernel $kernel,
-        private readonly UrlFactory $urlFactory,
         int $id,
     ) {
         parent::__construct(scheme: "activity", fragment: $id);
