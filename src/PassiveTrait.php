@@ -8,7 +8,7 @@ trait PassiveTrait
 {
     public function listen(Acceptor $acceptor): self
     {
-        $this->activity->push(new Accept($this, $factory, $acceptor, $this->handle));
+        $this->activity->push(new Accept($this, $acceptor, $this->handle));
         return $this;
     }
 

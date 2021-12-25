@@ -4,12 +4,13 @@ declare(strict_types=1);
 
 namespace davekok\kernel;
 
-class ReadableWritableFile implements Actionable, File, Readable, Writable
+class ReadableWritableFile implements Actionable, File, Readable, Writable, Closable
 {
     use ActionableTrait;
     use FileTrait;
     use ReadableTrait;
     use WritableTrait;
+    use ClosableTrait;
 
     public function __construct(
         public  readonly Url         $url,

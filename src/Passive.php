@@ -6,6 +6,6 @@ namespace davekok\kernel;
 
 interface Passive
 {
-    public function listen(ControllerFactory $factory): void;
+    public function listen(Acceptor $acceptor): void;
     public function accept(): Actionable;
 }

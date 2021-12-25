@@ -11,9 +11,9 @@ trait ReadableTrait
         return $this->readBuffer;
     }
 
-    public function read(Reader $reader, callable $setter): void
+    public function read(Reader $reader, callable $handler): void
     {
-        $this->activity->push(new Read($this, $reader, $setter, $this->handle));
+        $this->activity->push(new Read($this, $reader, $handler, $this->handle));
     }
 
     public function readChunk(): string

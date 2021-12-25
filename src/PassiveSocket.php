@@ -9,10 +9,11 @@ namespace davekok\kernel;
  * is called to get an active socket for the connection.
  * Reading and writing is not possible on passive socket.
  */
-class PassiveSocket implements Actionable, Passive
+class PassiveSocket implements Actionable, Passive, Closable
 {
     use ActionableTrait;
     use PassiveTrait;
+    use ClosableTrait;
 
     public function __construct(
         public readonly Url      $url,

@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace davekok\kernel;
 
-use davekok\container\Runnable;
+use davekok\system\Runnable;
 
 class Kernel implements Runnable
 {
@@ -14,8 +14,6 @@ class Kernel implements Runnable
     private TimeOut|null $timeOut    = null;
     private array        $activities = [];
     private array        $active     = [];
-
-    public function __construct(private readonly UrlFactory $urlFactory) {}
 
     public function run(): never
     {
@@ -88,7 +86,7 @@ class Kernel implements Runnable
     public function createActivity(): Activity
     {
         $id = (time() << 32) | random_int(0, 4294967295); // create a 64-bit unique id of time and a random int
-        $activity = new Activity($this, $this->urlFactory, $id);
+        $activity = new Activity($this, $id);
         $this->activities[$id] = $activity;
         $this->active[$id]     = $activity;
         return $activity;

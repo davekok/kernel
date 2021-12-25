@@ -11,11 +11,11 @@ class Read implements ReadableAction
     public function __construct(
         private readonly Actionable $actionable,
         private readonly Reader     $reader,
-        private readonly mixed      $setter,
+        private readonly mixed      $handler,
         private readonly mixed      $selector,
     ) {
         $this->actionable instanceof Readable ?: throw new KernelException("Not a readable actionable.");
-        is_callable($this->setter) ?: throw new KernelException("Expected setter property to be callable.");
+        is_callable($this->handler) ?: throw new KernelException("Expected handler property to be callable.");
         is_resource($this->selector) ?: throw new KernelException("Expected selector property to be a resource.");
     }
 
@@ -41,7 +41,7 @@ class Read implements ReadableAction
             }
 
             $this->actionable->activity()->next();
-            $this->setter($value);
+            $this->handler($value);
         } catch (Throwable $throwable) {
             $this->actionable->activity()->throw($throwable);
         }

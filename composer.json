@@ -18,11 +18,11 @@
     "repositories": [
         {
             "type": "vcs",
-            "url": "https://github.com/davekok/container"
+            "url": "https://github.com/davekok/system"
         }
     ],
     "require": {
-        "davekok/container": "dev-main",
+        "davekok/system": "dev-main",
         "psr/log": "^3.0"
     },
     "require-dev": {
