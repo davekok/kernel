@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 namespace davekok\kernel;
 
-use Psr\Logger\LoggerInterface;
-use Psr\Logger\LogLevel;
+use Psr\Log\LoggerInterface;
+use Psr\Log\LogLevel;
 use Stringable;
 
 class Logger implements LoggerInterface

@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace davekok\kernel;
 
-use davekok\system\Runnable;
+use davekok\wiring\Runnable;
 
 class Kernel implements Runnable
 {

@@ -2,16 +2,16 @@
 
 declare(strict_types=1);
 
-namespace davekok\stream\tests\context;
+namespace davekok\kernel\tests\context;
 
-use davekok\stream\context\Options;
+use davekok\kernel\context\Options;
 use PHPUnit\Framework\TestCase;
 
 /**
- * @coversDefaultClass \davekok\stream\context\Options
+ * @coversDefaultClass \davekok\kernel\context\Options
  * @covers ::__construct
- * @covers \davekok\stream\context\CryptoOptions::__construct
- * @covers \davekok\stream\context\SocketOptions::__construct
+ * @covers \davekok\kernel\context\CryptoOptions::__construct
+ * @covers \davekok\kernel\context\SocketOptions::__construct
  */
 class OptionsTest extends TestCase
 {

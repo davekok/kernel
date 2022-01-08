@@ -6,7 +6,7 @@ namespace davekok\kernel;
 
 trait PassiveTrait
 {
-    public function listen(Acceptor $acceptor): self
+    public function listen(Acceptor $acceptor): static
     {
         $this->activity->push(new Accept($this, $acceptor, $this->handle));
         return $this;

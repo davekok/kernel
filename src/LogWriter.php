@@ -24,7 +24,7 @@ class LogWriter implements Writer
         } . "\n";
     }
 
-    public function write(WriterBuffer $buffer): bool
+    public function write(WriteBuffer $buffer): bool
     {
         return $buffer->addChunk($this->offset, $this->message);
     }
