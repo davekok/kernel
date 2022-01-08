@@ -10,9 +10,7 @@ class MainUrlFactory implements UrlFactory
 
     public function createUrl(string $url): Url
     {
-        $scheme = $this->schemes[parse_url($url, PHP_URL_SCHEME)];
-        return isset($this->schemes[$scheme])
-            ? $this->schemes[$scheme]->createUrl($url)
-            : throw new KernelException("Scheme not supported: $url");
+        return $this->schemes[parse_url($url, PHP_URL_SCHEME)]->createUrl($url)
+            ?? throw new KernelException("Scheme not supported: $url");
     }
 }

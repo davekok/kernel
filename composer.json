@@ -18,11 +18,11 @@
     "repositories": [
         {
             "type": "vcs",
-            "url": "https://github.com/davekok/system"
+            "url": "https://github.com/davekok/wiring"
         }
     ],
     "require": {
-        "davekok/system": "dev-main",
+        "davekok/wiring": "dev-main",
         "psr/log": "^3.0"
     },
     "require-dev": {
